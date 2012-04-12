@@ -1,0 +1,13 @@
+program RegistroProd;
+
+uses
+  Forms,
+  RegistroProduccion in 'RegistroProduccion.pas' {frmRegistroProd};
+
+{$R *.res}
+
+begin
+  Application.Initialize;
+  Application.CreateForm(TfrmRegistroProd, frmRegistroProd);
+  Application.Run;
+end.
