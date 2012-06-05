@@ -51,7 +51,7 @@ Conditionals=
 DebugSourceDirs=
 UsePackages=0
 [Parameters]
-RunParams=/R=OK /T=TornoCNCVMC
+RunParams=/R=OK /T=AreaEspecial
 HostApplication=
 Launcher=
 UseLauncher=0

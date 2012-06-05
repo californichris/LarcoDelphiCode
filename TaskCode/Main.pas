@@ -148,6 +148,7 @@ begin
     if giTerminados = 1 then begin
         lblTerminado.Caption := ' AND ITS_DTStop > DATEADD(dd,-4,GETDATE()) ';
     end;
+
     Application.Title := gsTask;
     Timer1.Interval := giIntervalo;
     Timer2.Interval := giDelete;
