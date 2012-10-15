@@ -12,6 +12,7 @@ uses
 
 begin
   Application.Initialize;
+  Application.Title := 'Larco Quality App';
   Application.CreateForm(TfrmMain, frmMain);
   Application.Run;
 end.

@@ -61,9 +61,9 @@ ActiveLang=
 ProjectLang=
 RootDir=C:\Program Files\Borland\Delphi6\Bin\
 [Version Info]
-IncludeVerInfo=0
+IncludeVerInfo=1
 AutoIncBuild=0
-MajorVer=1
+MajorVer=2
 MinorVer=0
 Release=0
 Build=0
@@ -75,9 +75,9 @@ DLL=0
 Locale=1033
 CodePage=1252
 [Version Info Keys]
-CompanyName=
-FileDescription=
-FileVersion=1.0.0.0
+CompanyName=BeltranSoft
+FileDescription=Larco Quality Application
+FileVersion=2.0.0.0
 InternalName=
 LegalCopyright=
 LegalTrademarks=

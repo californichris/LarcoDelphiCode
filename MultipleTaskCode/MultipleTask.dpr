@@ -10,6 +10,7 @@ uses
 
 begin
   Application.Initialize;
+  Application.Title := 'Larco MultiTask App';
   Application.CreateForm(TfrmMain, frmMain);
   Application.Run;
 end.

@@ -11,7 +11,5 @@ uses
 begin
   Application.Initialize;
   Application.CreateForm(TfrmMain, frmMain);
-  Application.CreateForm(TfrmImprimir, frmImprimir);
-  Application.CreateForm(TPrintReport, PrintReport);
   Application.Run;
 end.

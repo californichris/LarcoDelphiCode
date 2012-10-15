@@ -141,7 +141,7 @@ begin
     gsConnString := 'Provider=SQLOLEDB.1;Persist Security Info=False;User ID=' + sUser +
                    ';Password= ' + sPassword +'; Initial Catalog=' + sDB + ';Data Source=' + sServer;
 
-    Self.Caption := Self.Caption + gsTask + ' 1.1.3';
+    Self.Caption := Self.Caption + gsTask + ' 1.1.4';
     if giTerminados = 1 then begin
         lblTerminado.Caption := ' AND ITS_DTStop > DATEADD(dd,-4,GETDATE()) ';
     end;
@@ -612,6 +612,11 @@ begin
                   Timer2.Enabled := True;
                   Exit;
                 end;
+              end;
+
+              if (Task = 'Ventas') and (Status = '1') then begin
+                  ShowMessage('La orden esta pendiente de Plano, no puede entrar a produccion.');
+                  Exit;
               end;
 
               if MessageDlg('La Orden esta ' + GetStatus(StrToInt(Status)) + ' en la tarea ' + Task + '.' + #13 +

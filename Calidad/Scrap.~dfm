@@ -1,10 +1,10 @@
 object frmScrap: TfrmScrap
-  Left = 323
-  Top = 167
+  Left = 343
+  Top = 109
   BorderIcons = [biSystemMenu]
   BorderStyle = bsSingle
   Caption = 'Confirmar'
-  ClientHeight = 344
+  ClientHeight = 379
   ClientWidth = 384
   Color = clBtnFace
   Font.Charset = ANSI_CHARSET
@@ -1005,7 +1005,7 @@ object frmScrap: TfrmScrap
     Left = 8
     Top = 92
     Width = 369
-    Height = 245
+    Height = 277
     Caption = '  Llena la siguiente informacion   '
     TabOrder = 3
     object Label2: TLabel
@@ -1023,34 +1023,41 @@ object frmScrap: TfrmScrap
       Caption = 'Area Responsable : '
     end
     object Label4: TLabel
-      Left = 5
-      Top = 91
+      Left = 6
+      Top = 90
       Width = 120
       Height = 13
       Caption = 'Empleado Responsable : '
     end
     object lblCantidad: TLabel
-      Left = 18
-      Top = 154
+      Left = 19
+      Top = 185
       Width = 107
       Height = 13
       Caption = 'Cantidad Scrapeada : '
       Visible = False
     end
     object lblRepro: TLabel
-      Left = 42
-      Top = 186
+      Left = 43
+      Top = 217
       Width = 83
       Height = 13
       Caption = 'A Reprogramar : '
       Visible = False
     end
     object Label5: TLabel
-      Left = 45
-      Top = 123
-      Width = 76
+      Left = 41
+      Top = 121
+      Width = 83
       Height = 13
-      Caption = 'Detectado por :'
+      Caption = 'Area Detectado :'
+    end
+    object Label6: TLabel
+      Left = 29
+      Top = 153
+      Width = 97
+      Height = 13
+      Caption = 'Empleado Detecto : '
     end
     object txtMotivo: TEdit
       Left = 128
@@ -1078,7 +1085,7 @@ object frmScrap: TfrmScrap
     end
     object btnOk: TButton
       Left = 231
-      Top = 213
+      Top = 245
       Width = 60
       Height = 20
       Caption = 'OK'
@@ -1087,7 +1094,7 @@ object frmScrap: TfrmScrap
     end
     object btnCancel: TButton
       Left = 298
-      Top = 213
+      Top = 245
       Width = 60
       Height = 20
       Caption = 'Cancel'
@@ -1096,7 +1103,7 @@ object frmScrap: TfrmScrap
     end
     object txtCantidad: TEdit
       Left = 128
-      Top = 151
+      Top = 183
       Width = 81
       Height = 21
       TabOrder = 4
@@ -1105,7 +1112,7 @@ object frmScrap: TfrmScrap
     end
     object chkParcial: TCheckBox
       Left = 226
-      Top = 153
+      Top = 185
       Width = 63
       Height = 17
       Hint = 'Si es scrap total dejelo en sin marcar.'
@@ -1118,7 +1125,7 @@ object frmScrap: TfrmScrap
     end
     object txtRepro: TEdit
       Left = 128
-      Top = 182
+      Top = 214
       Width = 121
       Height = 21
       TabOrder = 6
@@ -1132,6 +1139,14 @@ object frmScrap: TfrmScrap
       Height = 21
       ItemHeight = 13
       TabOrder = 3
+    end
+    object cmbEmpleadoDetecto: TComboBox
+      Left = 128
+      Top = 151
+      Width = 231
+      Height = 21
+      ItemHeight = 13
+      TabOrder = 9
     end
   end
   object Button1: TButton

@@ -33,6 +33,8 @@ type
     Label5: TLabel;
     cmbDetectado: TComboBox;
     lblCant: TLabel;
+    Label6: TLabel;
+    cmbEmpleadoDetecto: TComboBox;
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure btnCancelClick(Sender: TObject);
     procedure BindEmpleados();
@@ -95,13 +97,18 @@ begin
 
     cmbEmpleados.Items.Clear;
     cmbEmpleados.Items.Add('000 - Desconocido');
+    cmbEmpleadoDetecto.Items.Clear;
+    cmbEmpleadoDetecto.Items.Add('000 - Desconocido');
     While not Qry.Eof do
     Begin
         cmbEmpleados.Items.Add(FormatFloat('000',Qry['ID']) + ' - ' + Qry['Nombre']);
+        cmbEmpleadoDetecto.Items.Add(FormatFloat('000',Qry['ID']) + ' - ' + Qry['Nombre']);
         Qry.Next;
     End;
 
     cmbEmpleados.Text := '';
+    cmbEmpleadoDetecto.Text := '';
+
     Qry.Close;
     Conn.Close;
 end;
@@ -164,7 +171,7 @@ end;
 procedure TfrmScrap.btnScrapClick(Sender: TObject);
 begin
 txtMotivo.Text := '';
-self.Height := 378;
+self.Height := 406;
 BindEmpleados;
 BindTareas;
 gsSeleccion := (Sender as TButton).Caption;
@@ -207,48 +214,53 @@ begin
         Exit;
     end;
 
-  if cmbEmpleados.Text = '' then
-    begin
-      MessageDlg('Por favor seleccione un empleado de la lista.', mtInformation,[mbOk], 0);
-      Exit;
-    end;
-
   if cmbTareas.Text = '' then
     begin
-      MessageDlg('Por favor seleccione una area de la lista.', mtInformation,[mbOk], 0);
+      MessageDlg('Area responsable requerida.', mtInformation,[mbOk], 0);
       Exit;
     end;
 
-
-  bfound := False;
-  for i:= 0 to cmbEmpleados.Items.Count do
-          if cmbEmpleados.Text = cmbEmpleados.Items[i] then
-          begin
-               bfound := True;
-               break;
-          end;
-
-  if bfound = false then
+  if cmbEmpleados.Text = '' then
     begin
-      MessageDlg('Empleado Incorrecto : ' + cmbEmpleados.Text  + '.' + #13 +
-                 'Seleccione uno de la lista. ', mtInformation,[mbOk], 0);
+      MessageDlg('Empleado responsable requerida.', mtInformation,[mbOk], 0);
       Exit;
     end;
 
-  bfound := False;
-  for i:= 0 to cmbTareas.Items.Count do
-          if cmbTareas.Text = cmbTareas.Items[i] then
-          begin
-               bfound := True;
-               break;
-          end;
-
-  if bfound = false then
+  if cmbDetectado.Text = '' then
     begin
-      MessageDlg('Area Incorrecta : ' + cmbTareas.Text  + '.' + #13 +
+      MessageDlg('Area detectado requerida.', mtInformation,[mbOk], 0);
+      Exit;
+    end;
+
+  if cmbEmpleadoDetecto.Text = '' then
+    begin
+      MessageDlg('Empleado que lo detecto requerido.', mtInformation,[mbOk], 0);
+      Exit;
+    end;
+
+  if (cmbTareas.Items.IndexOf(cmbTareas.Text) = -1) then begin
+      MessageDlg('Area responsable Incorrecta : ' + cmbTareas.Text  + '.' + #13 +
                  'Seleccione una de la lista. ', mtInformation,[mbOk], 0);
       Exit;
-    end;
+  end;
+
+  if (cmbEmpleados.Items.IndexOf(cmbEmpleados.Text) = -1) then begin
+      MessageDlg('Empleado responsable Incorrecto : ' + cmbEmpleados.Text  + '.' + #13 +
+                 'Seleccione uno de la lista. ', mtInformation,[mbOk], 0);
+      Exit;
+  end;
+
+  if (cmbDetectado.Items.IndexOf(cmbDetectado.Text) = -1) then begin
+      MessageDlg('Area detectado Incorrecta : ' + cmbDetectado.Text  + '.' + #13 +
+                 'Seleccione una de la lista. ', mtInformation,[mbOk], 0);
+      Exit;
+  end;
+
+  if (cmbEmpleadoDetecto.Items.IndexOf(cmbEmpleadoDetecto.Text) = -1) then begin
+      MessageDlg('Empleado Detecto Incorrecto : ' + cmbEmpleadoDetecto.Text  + '.' + #13 +
+                 'Seleccione uno de la lista. ', mtInformation,[mbOk], 0);
+      Exit;
+  end;
 
   if gsSeleccion = 'Scrap' then
   begin
@@ -302,13 +314,15 @@ begin
         if txtRepro.Text = '' then txtRepro.Text := '0';
 
         SQLStr := 'INSERT INTO tblScrap(ITE_Nombre,SCR_Motivo,SCR_Tarea,SCR_EmpleadoRes,SCR_Cantidad,' +
-                  'SCR_Parcial,SCR_Repro,USE_Login,SCR_Fecha,SCR_NewItem,SCR_Impreso,SCR_Activo,SCR_Detectado) ' +
+                  'SCR_Parcial,SCR_Repro,USE_Login,SCR_Fecha,SCR_NewItem,SCR_Impreso,SCR_Activo,SCR_Detectado,' +
+                  'SCR_EmpleadoDetectado, Update_Date, Update_User) ' +
                   'VALUES(' + QuotedStr(lblOrden.Caption) + ',' +
                   QuotedStr(txtMotivo.Text) + ',' + QuotedStr(cmbTareas.Text) + ',' +
                   QuotedStr(LeftStr(cmbEmpleados.Text,3)) + ',' + txtCantidad.Text + ',' +
                   BoolToStrInt(chkParcial.Checked) + ',' + txtRepro.Text +
                   ',' + QuotedStr(lblEmpleado.Caption) + ',GetDate(),NULL,0,0,' +
-                  QuotedStr(cmbDetectado.Text) + ')';
+                  QuotedStr(cmbDetectado.Text) + ',' + LeftStr(cmbEmpleados.Text,3) + ', GetDate(),' +
+                  lblEmpleado.Caption + ')';
 
         Conn.Execute(SQLStr);
         Conn.Close;
@@ -318,7 +332,8 @@ begin
         SQLStr := 'INSERT INTO tblRetrabajo VALUES(' + QuotedStr(lblOrden.Caption) + ',' +
                   QuotedStr(txtMotivo.Text) + ',' + QuotedStr(cmbTareas.Text) + ',' +
                   QuotedStr(LeftStr(cmbEmpleados.Text,3)) + ',GetDate(),NULL,' +
-                  QuotedStr(cmbDetectado.Text) + ')';
+                  QuotedStr(cmbDetectado.Text) + ',' + LeftStr(cmbEmpleados.Text,3) + ', GetDate(),' +
+                  lblEmpleado.Caption + ')';
 
         Conn.Execute(SQLStr);
         Conn.Close;
@@ -326,7 +341,7 @@ begin
         Close;
 
 
-        frmMain.ChangeStatus(lblOrden.Caption,'5');
+        frmMain.ChangeStatus(lblOrden.Caption, '5');
    end;
 end;
 

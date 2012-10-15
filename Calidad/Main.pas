@@ -631,6 +631,11 @@ begin
                 end;
               end;
 
+              if (Task = 'Ventas') and (Status = '1') then begin
+                  ShowMessage('La orden esta pendiente de Plano, no puede entrar a produccion.');
+                  Exit;
+              end;
+
               if MessageDlg('La Orden esta ' + GetStatus(StrToInt(Status)) + ' en la tarea ' + Task + '.' + #13 +
                'Quieres activar la orden en esta tarea?',
                 mtConfirmation, [mbYes, mbNo], 0) = mrNo then
