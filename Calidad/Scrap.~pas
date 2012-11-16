@@ -66,15 +66,27 @@ uses Main, Login;
 
 procedure TfrmScrap.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
+frmMain.Timer2.Enabled := True;
+frmMain.Timer1.Enabled := True;
 frmMain.Timer1Timer(nil);
+
 self.Hide;
+
 frmMain.Enabled := True;
 setActiveWindow(frmMain.Handle);
 end;
 
+procedure TfrmScrap.Button1Click(Sender: TObject);
+begin
+    frmMain.ChangeStatus(lblOrden.Caption,lblStatus.Caption, false);
+    frmMain.txtOrden.Text := '';
+    //frmMain.txtOrden.SetFocus;
+    Close();
+end;
+
 procedure TfrmScrap.btnCancelClick(Sender: TObject);
 begin
-        close;
+    Close;
 end;
 
 procedure TfrmScrap.BindEmpleados();
@@ -82,35 +94,40 @@ var Conn : TADOConnection;
 Qry : TADOQuery;
 SQLStr : String;
 begin
-    //Create Connection
-    Conn := TADOConnection.Create(nil);
-    Conn.ConnectionString := gsConnString;
-    Conn.LoginPrompt := False;
-    Qry := TADOQuery.Create(nil);
-    Qry.Connection :=Conn;
+    Qry := nil;
+    Conn := nil;
+    try
+    begin
+      Conn := TADOConnection.Create(nil);
+      Conn.ConnectionString := gsConnString;
+      Conn.LoginPrompt := False;
+      Qry := TADOQuery.Create(nil);
+      Qry.Connection :=Conn;
 
-    SQLStr := 'SELECT ID,Nombre FROM tblEmpleados Order By Nombre';
+      SQLStr := 'SELECT ID,Nombre FROM tblEmpleados Order By Nombre';
 
-    Qry.SQL.Clear;
-    Qry.SQL.Text := SQLStr;
-    Qry.Open;
+      Qry.SQL.Clear;
+      Qry.SQL.Text := SQLStr;
+      Qry.Open;
 
-    cmbEmpleados.Items.Clear;
-    cmbEmpleados.Items.Add('000 - Desconocido');
-    cmbEmpleadoDetecto.Items.Clear;
-    cmbEmpleadoDetecto.Items.Add('000 - Desconocido');
-    While not Qry.Eof do
-    Begin
-        cmbEmpleados.Items.Add(FormatFloat('000',Qry['ID']) + ' - ' + Qry['Nombre']);
-        cmbEmpleadoDetecto.Items.Add(FormatFloat('000',Qry['ID']) + ' - ' + Qry['Nombre']);
-        Qry.Next;
-    End;
+      cmbEmpleados.Items.Clear;
+      cmbEmpleados.Items.Add('000 - Desconocido');
+      cmbEmpleadoDetecto.Items.Clear;
+      cmbEmpleadoDetecto.Items.Add('000 - Desconocido');
+      While not Qry.Eof do
+      Begin
+          cmbEmpleados.Items.Add(FormatFloat('000',Qry['ID']) + ' - ' + Qry['Nombre']);
+          cmbEmpleadoDetecto.Items.Add(FormatFloat('000',Qry['ID']) + ' - ' + Qry['Nombre']);
+          Qry.Next;
+      End;
 
-    cmbEmpleados.Text := '';
-    cmbEmpleadoDetecto.Text := '';
-
-    Qry.Close;
-    Conn.Close;
+      cmbEmpleados.Text := '';
+      cmbEmpleadoDetecto.Text := '';
+    end
+    finally
+      if Qry <> nil then Qry.Close;
+      if Conn <> nil then Conn.Close;
+    end;
 end;
 
 procedure TfrmScrap.BindTareas();
@@ -118,32 +135,38 @@ var Conn : TADOConnection;
 Qry : TADOQuery;
 SQLStr : String;
 begin
-    //Create Connection
-    Conn := TADOConnection.Create(nil);
-    Conn.ConnectionString := gsConnString;
-    Conn.LoginPrompt := False;
-    Qry := TADOQuery.Create(nil);
-    Qry.Connection :=Conn;
+    Qry := nil;
+    Conn := nil;
+    try
+    begin
+      Conn := TADOConnection.Create(nil);
+      Conn.ConnectionString := gsConnString;
+      Conn.LoginPrompt := False;
+      Qry := TADOQuery.Create(nil);
+      Qry.Connection :=Conn;
 
-    SQLStr := 'SELECT Nombre FROM tblTareas Order By Nombre';
+      SQLStr := 'SELECT Nombre FROM tblTareas Order By Nombre';
 
-    Qry.SQL.Clear;
-    Qry.SQL.Text := SQLStr;
-    Qry.Open;
+      Qry.SQL.Clear;
+      Qry.SQL.Text := SQLStr;
+      Qry.Open;
 
-    cmbTareas.Items.Clear;
-    cmbDetectado.Items.Clear;
-    While not Qry.Eof do
-    Begin
-        cmbTareas.Items.Add(Qry['Nombre']);
-        cmbDetectado.Items.Add(Qry['Nombre']);
-        Qry.Next;
-    End;
+      cmbTareas.Items.Clear;
+      cmbDetectado.Items.Clear;
+      While not Qry.Eof do
+      Begin
+          cmbTareas.Items.Add(Qry['Nombre']);
+          cmbDetectado.Items.Add(Qry['Nombre']);
+          Qry.Next;
+      End;
 
-    cmbTareas.Text := '';
-    cmbDetectado.Text := '';
-    Qry.Close;
-    Conn.Close;
+      cmbTareas.Text := '';
+      cmbDetectado.Text := '';
+    end
+    finally
+      if Qry <> nil then Qry.Close;
+      if Conn <> nil then Conn.Close;
+    end;
 end;
 
 
@@ -188,19 +211,8 @@ end
 
 end;
 
-procedure TfrmScrap.Button1Click(Sender: TObject);
-begin
-    frmMain.ChangeStatus(lblOrden.Caption,lblStatus.Caption);
-    frmMain.Timer1Timer(nil);
-    self.Hide;
-    frmMain.Enabled := True;
-    setActiveWindow(frmMain.Handle);
-end;
-
 procedure TfrmScrap.btnOkClick(Sender: TObject);
-var bfound : Boolean;
-i : integer;
-Conn : TADOConnection;
+var Conn : TADOConnection;
 SQLStr,sOpcion : String;
 begin
   sOpcion := 'retrabajar';
@@ -294,55 +306,56 @@ begin
       Exit;
   end;
 
-  //Create Connection
-  Conn := TADOConnection.Create(nil);
-  Conn.ConnectionString := gsConnString;
-  Conn.LoginPrompt := False;
-
-
-  if gsSeleccion = 'Scrap' then
+  Conn := nil;
+  try
   begin
-        if giConfirmPass = 1 then begin
-            Application.CreateForm(TfrmLogin, frmLogin);
-            if frmLogin.ShowModal <> mrOK then begin
-                  ShowMessage('No tienes permiso para scrapear esta orden.');
-                  Exit;
-            end;
-        end;
+    Conn := TADOConnection.Create(nil);
+    Conn.ConnectionString := gsConnString;
+    Conn.LoginPrompt := False;
+
+    if gsSeleccion = 'Scrap' then
+    begin
+          if giConfirmPass = 1 then begin
+              Application.CreateForm(TfrmLogin, frmLogin);
+              if frmLogin.ShowModal <> mrOK then begin
+                    ShowMessage('No tienes permiso para scrapear esta orden.');
+                    Exit;
+              end;
+          end;
 
 
-        if txtRepro.Text = '' then txtRepro.Text := '0';
+          if txtRepro.Text = '' then txtRepro.Text := '0';
 
-        SQLStr := 'INSERT INTO tblScrap(ITE_Nombre,SCR_Motivo,SCR_Tarea,SCR_EmpleadoRes,SCR_Cantidad,' +
-                  'SCR_Parcial,SCR_Repro,USE_Login,SCR_Fecha,SCR_NewItem,SCR_Impreso,SCR_Activo,SCR_Detectado,' +
-                  'SCR_EmpleadoDetectado, Update_Date, Update_User) ' +
-                  'VALUES(' + QuotedStr(lblOrden.Caption) + ',' +
-                  QuotedStr(txtMotivo.Text) + ',' + QuotedStr(cmbTareas.Text) + ',' +
-                  QuotedStr(LeftStr(cmbEmpleados.Text,3)) + ',' + txtCantidad.Text + ',' +
-                  BoolToStrInt(chkParcial.Checked) + ',' + txtRepro.Text +
-                  ',' + QuotedStr(lblEmpleado.Caption) + ',GetDate(),NULL,0,0,' +
-                  QuotedStr(cmbDetectado.Text) + ',' + LeftStr(cmbEmpleados.Text,3) + ', GetDate(),' +
-                  lblEmpleado.Caption + ')';
+          SQLStr := 'INSERT INTO tblScrap(ITE_Nombre,SCR_Motivo,SCR_Tarea,SCR_EmpleadoRes,SCR_Cantidad,' +
+                    'SCR_Parcial,SCR_Repro,USE_Login,SCR_Fecha,SCR_NewItem,SCR_Impreso,SCR_Activo,SCR_Detectado,' +
+                    'SCR_EmpleadoDetectado, Update_Date, Update_User) ' +
+                    'VALUES(' + QuotedStr(lblOrden.Caption) + ',' +
+                    QuotedStr(txtMotivo.Text) + ',' + QuotedStr(cmbTareas.Text) + ',' +
+                    QuotedStr(LeftStr(cmbEmpleados.Text,3)) + ',' + txtCantidad.Text + ',' +
+                    BoolToStrInt(chkParcial.Checked) + ',' + txtRepro.Text +
+                    ',' + QuotedStr(lblEmpleado.Caption) + ',GetDate(),NULL,0,0,' +
+                    QuotedStr(cmbDetectado.Text) + ',' + LeftStr(cmbEmpleadoDetecto.Text,3) + ', GetDate(),' +
+                    lblEmpleado.Caption + ')';
 
-        Conn.Execute(SQLStr);
-        Conn.Close;
-        Close;
-   end
-   Else Begin
-        SQLStr := 'INSERT INTO tblRetrabajo VALUES(' + QuotedStr(lblOrden.Caption) + ',' +
-                  QuotedStr(txtMotivo.Text) + ',' + QuotedStr(cmbTareas.Text) + ',' +
-                  QuotedStr(LeftStr(cmbEmpleados.Text,3)) + ',GetDate(),NULL,' +
-                  QuotedStr(cmbDetectado.Text) + ',' + LeftStr(cmbEmpleados.Text,3) + ', GetDate(),' +
-                  lblEmpleado.Caption + ')';
+          Conn.Execute(SQLStr);
+      end
+      else begin
+          SQLStr := 'INSERT INTO tblRetrabajo VALUES(' + QuotedStr(lblOrden.Caption) + ',' +
+                    QuotedStr(txtMotivo.Text) + ',' + QuotedStr(cmbTareas.Text) + ',' +
+                    QuotedStr(LeftStr(cmbEmpleados.Text,3)) + ',GetDate(),NULL,' +
+                    QuotedStr(cmbDetectado.Text) + ',' + LeftStr(cmbEmpleadoDetecto.Text,3) + ', GetDate(),' +
+                    lblEmpleado.Caption + ')';
 
-        Conn.Execute(SQLStr);
-        Conn.Close;
+          Conn.Execute(SQLStr);
 
-        Close;
+          frmMain.ChangeStatus(lblOrden.Caption, '5', false);
+      end;
+    end
+    finally
+      if Conn <> nil then Conn.Close;
+    end;
 
-
-        frmMain.ChangeStatus(lblOrden.Caption, '5');
-   end;
+    Close;
 end;
 
 procedure TfrmScrap.chkParcialClick(Sender: TObject);
@@ -391,22 +404,31 @@ SQLStr : String;
 begin
     Result := True;
 
-    //Create Connection
-    Conn := TADOConnection.Create(nil);
-    Conn.ConnectionString := gsConnString;
-    Conn.LoginPrompt := False;
-    Qry := TADOQuery.Create(nil);
-    Qry.Connection :=Conn;
+    Qry := nil;
+    Conn := nil;
+    try
+    begin
+      Conn := TADOConnection.Create(nil);
+      Conn.ConnectionString := gsConnString;
+      Conn.LoginPrompt := False;
+      Qry := TADOQuery.Create(nil);
+      Qry.Connection :=Conn;
 
-    SQLStr := 'SELECT Top 1 Ordenada FROM tblOrdenes WHERE ITE_Nombre = ' + QuotedStr(Item);
+      SQLStr := 'SELECT Top 1 Ordenada FROM tblOrdenes WHERE ITE_Nombre = ' + QuotedStr(Item);
 
-    Qry.SQL.Clear;
-    Qry.SQL.Text := SQLStr;
-    Qry.Open;
+      Qry.SQL.Clear;
+      Qry.SQL.Text := SQLStr;
+      Qry.Open;
 
-    if Qry.RecordCount > 0 then
-        if Cantidad > StrToInt(VarToStr(Qry['Ordenada'])) then
-                Result := False;
+      if Qry.RecordCount > 0 then
+          if Cantidad > StrToInt(VarToStr(Qry['Ordenada'])) then
+                  Result := False;
+
+    end
+    finally
+      if Qry <> nil then Qry.Close;
+      if Conn <> nil then Conn.Close;
+    end;
 
 end;
 

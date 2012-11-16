@@ -49,7 +49,7 @@ type
     lblAntes: TLabel;
     function GetStatus(value:integer):String;
     function GetStatusDes(value:integer):String;
-    procedure ChangeStatus(Orden,Status : String);
+    procedure ChangeStatus(Orden,Status : String; update: Boolean);
     procedure ActivarOrden(Orden,Task,User : String);
     procedure MoverOrden();
     function IsActive(Orden: String):Boolean;
@@ -57,6 +57,8 @@ type
     function ValidateOrden(Orden: String; var Msg,Task,Status: String):Boolean;
     function ValidateEmpleado(Id: String):Boolean;
     procedure BindItemDetail(Item: String; Status: String);
+    procedure BindAll();
+    procedure BindListosActivosRetrabajo();
     procedure BindListos();
     procedure BindActivos();
     procedure BindRetrabajo();
@@ -149,71 +151,158 @@ begin
                    ';Password= ' + sPassword +'; Initial Catalog=' + sDB + ';Data Source=' + sServer;
     giTerminados := StrToInt(IniFile.ReadString('Tasks','Terminados','0'));
 
-    Self.Caption := Self.Caption + gsTask + ' 1.1.4';
+    Self.Caption := Self.Caption + gsTask + ' 2.1';
 
     if giTerminados = 1 then begin
-        lblTerminado.Caption := ' AND ITS_DTStop > DATEADD(dd,-4,GETDATE()) ';
+        lblTerminado.Caption := ' AND I.ITS_DTStop > DATEADD(dd,-4,GETDATE()) ';
     end;
 
     Application.Title := gsTask;
     Timer1.Interval := giIntervalo;
     Timer2.Interval := giDelete;
-    BindListos;
-    BindActivos;
-    BindRetrabajo;
-    BindTerminados;
-    BindAnteriores;    
-    BindStats()
+
+    BindAll();
 end;
+
+procedure TfrmMain.BindAll();
+begin
+    BindListosActivosRetrabajo;
+    //BindListos;
+    //BindActivos;
+    //BindRetrabajo;
+    BindTerminados;
+    BindAnteriores;
+    BindStats();
+end;
+
+procedure TfrmMain.BindListosActivosRetrabajo();
+var Conn : TADOConnection;
+Qry : TADOQuery;
+SQLStr, status : String;
+begin
+    Qry := nil;
+    Conn := nil;
+    try
+    begin
+      Conn := TADOConnection.Create(nil);
+      Conn.ConnectionString := gsConnString;
+      Conn.LoginPrompt := False;
+      Qry := TADOQuery.Create(nil);
+      Qry.Connection :=Conn;
+
+      SQLStr := 'SELECT I.ITE_ID,RTRIM(I.ITE_Nombre) AS ITE_Nombre, ' +
+                'CASE WHEN ITS_Status = 2 THEN 0 ' +
+                'WHEN dbo.GetHours(I.ITS_DTStart,GETDATE()) > T.Tiempo THEN 1 ' +
+                'WHEN dbo.GetHours(O.Interna,GETDATE()) > T.Interno THEN 1 ' +
+                'WHEN I2.ITE_Priority > 0.00 THEN 2 ' +
+                'ELSE 0 END AS Late, ' +
+                'I2.ITE_Status, I.ITS_Status ' +
+                'FROM tblItemTasks I ' +
+                'INNER JOIN tblTareas T ON I.TAS_ID = T.[ID] AND T.Nombre = ' + QuotedStr(gsTask) + ' AND I.ITS_Status in (0,1,3) ' +
+                'INNER JOIN tblItems I2 ON I2.ITE_ID = I.ITE_ID ' +
+                'INNER JOIN tblOrdenes O ON I.ITE_ID = O.ITE_ID ';
+
+      if lblQuery.Caption <> '' then begin
+        SQLStr := SQLStr + 'WHERE ' + lblQuery.Caption;
+      end;
+
+      SQLStr := SQLStr + ' ORDER BY I.ITS_DTStart Desc' ;
+
+      Qry.SQL.Clear;
+      Qry.SQL.Text := SQLStr;
+      Qry.Open;
+
+      gvListos.ClearRows;
+      gvActivos.ClearRows;
+      gvRetrabajo.ClearRows;
+      while not Qry.Eof do
+      begin
+          status := VarToStr(Qry['ITS_Status']);
+          if status = '0' then begin
+            gvListos.AddRow(1);
+            gvListos.Cells[0,gvListos.RowCount -1] := VarToStr(Qry['ITE_ID']);
+            gvListos.Cells[1,gvListos.RowCount -1] := VarToStr(Qry['ITE_Nombre']);
+            gvListos.Cell[2,gvListos.RowCount -1].AsInteger := StrToInt( VarToStr(Qry['Late']) );
+          end
+          else if status = '1' then begin
+            gvActivos.AddRow(1);
+            gvActivos.Cells[0,gvActivos.RowCount -1] := VarToStr(Qry['ITE_ID']);
+            gvActivos.Cells[1,gvActivos.RowCount -1] := VarToStr(Qry['ITE_Nombre']);
+            gvActivos.Cell[2,gvActivos.RowCount -1].AsInteger := StrToInt( VarToStr(Qry['Late']) );
+          end
+          else if status = '3' then begin
+            gvRetrabajo.AddRow(1);
+            gvRetrabajo.Cells[0,gvRetrabajo.RowCount -1] := VarToStr(Qry['ITE_ID']);
+            gvRetrabajo.Cells[1,gvRetrabajo.RowCount -1] := VarToStr(Qry['ITE_Nombre']);
+            gvRetrabajo.Cell[2,gvRetrabajo.RowCount -1].AsInteger := StrToInt( VarToStr(Qry['Late']) );
+          end;
+          Qry.Next;
+      end;
+    end
+    finally
+      if Qry <> nil then begin
+        Qry.Close;
+        Qry.Free;
+      end;
+      if Conn <> nil then begin
+        Conn.Close;
+        Conn.Free
+      end;
+    end;
+end;
+
 
 procedure TfrmMain.BindListos();
 var Conn : TADOConnection;
 Qry : TADOQuery;
 SQLStr : String;
 begin
-    //Create Connection
-    Conn := TADOConnection.Create(nil);
-    Conn.ConnectionString := gsConnString;
-    Conn.LoginPrompt := False;
-    Qry := TADOQuery.Create(nil);
-    Qry.Connection :=Conn;
+    Qry := nil;
+    Conn := nil;
+    try
+    begin
+      Conn := TADOConnection.Create(nil);
+      Conn.ConnectionString := gsConnString;
+      Conn.LoginPrompt := False;
+      Qry := TADOQuery.Create(nil);
+      Qry.Connection :=Conn;
 
-    SQLStr := 'SELECT I.ITE_ID,RTRIM(I.ITE_Nombre) AS ITE_Nombre, ' +
-              'CASE WHEN ITS_Status = 2 THEN 0 ' +
-              'WHEN dbo.GetHours(I.ITS_DTStart,GETDATE()) > T.Tiempo THEN 1 ' +
-              'WHEN dbo.GetHours(O.Interna,GETDATE()) > T.Interno THEN 1 ' +
-              'WHEN I2.ITE_Priority > 0.00 THEN 2 ' +
-              'ELSE 0 END AS Late, ' +
-              'I2.ITE_Status ' +
-              'FROM tblItemTasks I ' +
-              'INNER JOIN tblTareas T ON I.TAS_ID = T.[ID] ' +
-              'INNER JOIN tblItems I2 ON I2.ITE_ID = I.ITE_ID ' +
-              'INNER JOIN tblOrdenes O ON I.ITE_ID = O.ITE_ID ' +
-              'WHERE T.Nombre = ' + QuotedStr(gsTask) + ' AND I.ITS_Status = 0';
+      SQLStr := 'SELECT I.ITE_ID,RTRIM(I.ITE_Nombre) AS ITE_Nombre, ' +
+                'CASE WHEN ITS_Status = 2 THEN 0 ' +
+                'WHEN dbo.GetHours(I.ITS_DTStart,GETDATE()) > T.Tiempo THEN 1 ' +
+                'WHEN dbo.GetHours(O.Interna,GETDATE()) > T.Interno THEN 1 ' +
+                'WHEN I2.ITE_Priority > 0.00 THEN 2 ' +
+                'ELSE 0 END AS Late, ' +
+                'I2.ITE_Status ' +
+                'FROM tblItemTasks I ' +
+                'INNER JOIN tblTareas T ON I.TAS_ID = T.[ID] AND T.Nombre = ' + QuotedStr(gsTask) + ' AND I.ITS_Status = 0 ' +
+                'INNER JOIN tblItems I2 ON I2.ITE_ID = I.ITE_ID ' +
+                'INNER JOIN tblOrdenes O ON I.ITE_ID = O.ITE_ID ';
 
-{    SQLStr := 'SELECT ITE_ID,RTRIM(ITE_Nombre) AS ITE_Nombre FROM tblItemTasks I ' +
-              'INNER JOIN tblTareas T ON I.TAS_ID = T.[ID] ' +
-              'WHERE T.Nombre = ' + QuotedStr(gsTask) + ' AND ITS_Status = 0';
-}
-    SQLStr := SQLStr + lblQuery.Caption;
-    SQLStr := SQLStr + ' ORDER BY I.ITS_DTStart Desc' ;
+      if lblQuery.Caption <> '' then begin
+        SQLStr := SQLStr + 'WHERE ' + lblQuery.Caption;
+      end;
 
-    Qry.SQL.Clear;
-    Qry.SQL.Text := SQLStr;
-    Qry.Open;
+      SQLStr := SQLStr + ' ORDER BY I.ITS_DTStart Desc' ;
 
-    gvListos.ClearRows;
-    While not Qry.Eof do
-    Begin
-        gvListos.AddRow(1);
-        gvListos.Cells[0,gvListos.RowCount -1] := VarToStr(Qry['ITE_ID']);
-        gvListos.Cells[1,gvListos.RowCount -1] := VarToStr(Qry['ITE_Nombre']);
-        gvListos.Cell[2,gvListos.RowCount -1].AsInteger := StrToInt( VarToStr(Qry['Late']) );
-        Qry.Next;
-    End;
+      Qry.SQL.Clear;
+      Qry.SQL.Text := SQLStr;
+      Qry.Open;
 
-    Qry.Close;
-    Conn.Close;
+      gvListos.ClearRows;
+      while not Qry.Eof do
+      begin
+          gvListos.AddRow(1);
+          gvListos.Cells[0,gvListos.RowCount -1] := VarToStr(Qry['ITE_ID']);
+          gvListos.Cells[1,gvListos.RowCount -1] := VarToStr(Qry['ITE_Nombre']);
+          gvListos.Cell[2,gvListos.RowCount -1].AsInteger := StrToInt( VarToStr(Qry['Late']) );
+          Qry.Next;
+      end;
+    end
+    finally
+      if Qry <> nil then Qry.Close;
+      if Conn <> nil then Conn.Close;
+    end;
 end;
 
 procedure TfrmMain.BindActivos();
@@ -221,46 +310,53 @@ var Conn : TADOConnection;
 Qry : TADOQuery;
 SQLStr : String;
 begin
-    //Create Connection
-    Conn := TADOConnection.Create(nil);
-    Conn.ConnectionString := gsConnString;
-    Conn.LoginPrompt := False;
-    Qry := TADOQuery.Create(nil);
-    Qry.Connection :=Conn;
+    Qry := nil;
+    Conn := nil;
+    try
+    begin
+      Conn := TADOConnection.Create(nil);
+      Conn.ConnectionString := gsConnString;
+      Conn.LoginPrompt := False;
+      Qry := TADOQuery.Create(nil);
+      Qry.Connection :=Conn;
 
-    SQLStr := 'SELECT I.ITE_ID,RTRIM(I.ITE_Nombre) AS ITE_Nombre, ' +
-              'CASE WHEN ITS_Status = 2 THEN 0 ' +
-              'WHEN dbo.GetHours(I.ITS_DTStart,GETDATE()) > T.Tiempo THEN 1 ' +
-              'WHEN dbo.GetHours(O.Interna,GETDATE()) > T.Interno THEN 1 ' +
-              'WHEN I2.ITE_Priority > 0.00 THEN 2 ' +
-              'ELSE 0 END AS Late, ' +
-              'I2.ITE_Status ' +
-              'FROM tblItemTasks I ' +
-              'INNER JOIN tblTareas T ON I.TAS_ID = T.[ID] ' +
-              'INNER JOIN tblItems I2 ON I2.ITE_ID = I.ITE_ID ' +
-              'INNER JOIN tblOrdenes O ON I.ITE_ID = O.ITE_ID ' +
-              'WHERE T.Nombre = ' + QuotedStr(gsTask) + ' AND I.ITS_Status = 1 ';
+      SQLStr := 'SELECT I.ITE_ID,RTRIM(I.ITE_Nombre) AS ITE_Nombre, ' +
+                'CASE WHEN ITS_Status = 2 THEN 0 ' +
+                'WHEN dbo.GetHours(I.ITS_DTStart,GETDATE()) > T.Tiempo THEN 1 ' +
+                'WHEN dbo.GetHours(O.Interna,GETDATE()) > T.Interno THEN 1 ' +
+                'WHEN I2.ITE_Priority > 0.00 THEN 2 ' +
+                'ELSE 0 END AS Late, ' +
+                'I2.ITE_Status ' +
+                'FROM tblItemTasks I ' +
+                'INNER JOIN tblTareas T ON I.TAS_ID = T.[ID] AND T.Nombre = ' + QuotedStr(gsTask) + ' AND I.ITS_Status = 1 ' +
+                'INNER JOIN tblItems I2 ON I2.ITE_ID = I.ITE_ID ' +
+                'INNER JOIN tblOrdenes O ON I.ITE_ID = O.ITE_ID ';
 
-    SQLStr := SQLStr + lblQuery.Caption;
-    SQLStr := SQLStr + ' ORDER BY I.ITS_DTStart Desc' ;
+      if lblQuery.Caption <> '' then begin
+        SQLStr := SQLStr + 'WHERE ' + lblQuery.Caption;
+      end;
 
-    Qry.SQL.Clear;
-    Qry.SQL.Text := SQLStr;
-    Qry.Open;
+      SQLStr := SQLStr + ' ORDER BY I.ITS_DTStart Desc' ;
+
+      Qry.SQL.Clear;
+      Qry.SQL.Text := SQLStr;
+      Qry.Open;
 
 
-    gvActivos.ClearRows;
-    While not Qry.Eof do
-    Begin
-        gvActivos.AddRow(1);
-        gvActivos.Cells[0,gvActivos.RowCount -1] := VarToStr(Qry['ITE_ID']);
-        gvActivos.Cells[1,gvActivos.RowCount -1] := VarToStr(Qry['ITE_Nombre']);
-        gvActivos.Cell[2,gvActivos.RowCount -1].AsInteger := StrToInt( VarToStr(Qry['Late']) );
-        Qry.Next;
-    End;
-
-    Qry.Close;
-    Conn.Close;
+      gvActivos.ClearRows;
+      while not Qry.Eof do
+      begin
+          gvActivos.AddRow(1);
+          gvActivos.Cells[0,gvActivos.RowCount -1] := VarToStr(Qry['ITE_ID']);
+          gvActivos.Cells[1,gvActivos.RowCount -1] := VarToStr(Qry['ITE_Nombre']);
+          gvActivos.Cell[2,gvActivos.RowCount -1].AsInteger := StrToInt( VarToStr(Qry['Late']) );
+          Qry.Next;
+      end;
+    end
+    finally
+      if Qry <> nil then Qry.Close;
+      if Conn <> nil then Conn.Close;
+    end;
 end;
 
 procedure TfrmMain.BindTerminados();
@@ -268,46 +364,52 @@ var Conn : TADOConnection;
 Qry : TADOQuery;
 SQLStr : String;
 begin
-    //Create Connection
-    Conn := TADOConnection.Create(nil);
-    Conn.ConnectionString := gsConnString;
-    Conn.LoginPrompt := False;
-    Qry := TADOQuery.Create(nil);
-    Qry.Connection :=Conn;
+    Qry := nil;
+    Conn := nil;
+    try
+    begin
+      Conn := TADOConnection.Create(nil);
+      Conn.ConnectionString := gsConnString;
+      Conn.LoginPrompt := False;
+      Qry := TADOQuery.Create(nil);
+      Qry.Connection :=Conn;
 
-    SQLStr := 'SELECT I.ITE_ID,RTRIM(I.ITE_Nombre) AS ITE_Nombre, ' +
-              'CASE WHEN ITS_Status = 2 THEN 0 ' +
-              'WHEN dbo.GetHours(I.ITS_DTStart,GETDATE()) > T.Tiempo THEN 1 ' +
-              'WHEN dbo.GetHours(O.Interna,GETDATE()) > T.Interno THEN 1 ' +
-              'WHEN I2.ITE_Priority > 0.00 THEN 2 ' +
-              'ELSE 0 END AS Late, ' +
-              'I2.ITE_Status ' +
-              'FROM tblItemTasks I ' +
-              'INNER JOIN tblTareas T ON I.TAS_ID = T.[ID] ' +
-              'INNER JOIN tblItems I2 ON I2.ITE_ID = I.ITE_ID ' +
-              'INNER JOIN tblOrdenes O ON I.ITE_ID = O.ITE_ID ' +
-              'WHERE T.Nombre = ' + QuotedStr(gsTask) + ' AND I.ITS_Status = 2';
+      SQLStr := 'SELECT I.ITE_ID,RTRIM(I.ITE_Nombre) AS ITE_Nombre, ' +
+                'CASE WHEN ITS_Status = 2 THEN 0 ' +
+                'WHEN dbo.GetHours(I.ITS_DTStart,GETDATE()) > T.Tiempo THEN 1 ' +
+                'WHEN dbo.GetHours(O.Interna,GETDATE()) > T.Interno THEN 1 ' +
+                'WHEN I2.ITE_Priority > 0.00 THEN 2 ' +
+                'ELSE 0 END AS Late, ' +
+                'I2.ITE_Status ' +
+                'FROM tblItemTasks I ' +
+                'INNER JOIN tblTareas T ON I.TAS_ID = T.[ID] AND T.Nombre = ' + QuotedStr(gsTask) + ' AND I.ITS_Status = 2 ' + lblTerminado.Caption +
+                'INNER JOIN tblItems I2 ON I2.ITE_ID = I.ITE_ID ' +
+                'INNER JOIN tblOrdenes O ON I.ITE_ID = O.ITE_ID ';
 
-    SQLStr := SQLStr + lblTerminado.Caption;
-    SQLStr := SQLStr + lblQuery.Caption;
-    SQLStr := SQLStr + ' ORDER BY I.ITS_DTStart Desc' ;
-    Qry.SQL.Clear;
-    Qry.SQL.Text := SQLStr;
-    Qry.Open;
+      if lblQuery.Caption <> '' then begin
+        SQLStr := SQLStr + 'WHERE ' + lblQuery.Caption;
+      end;
+
+      SQLStr := SQLStr + ' ORDER BY I.ITS_DTStart Desc' ;
+      Qry.SQL.Clear;
+      Qry.SQL.Text := SQLStr;
+      Qry.Open;
 
 
-    gvTerminados.ClearRows;
-    While not Qry.Eof do
-    Begin
-        gvTerminados.AddRow(1);
-        gvTerminados.Cells[0,gvTerminados.RowCount -1] := VarToStr(Qry['ITE_ID']);
-        gvTerminados.Cells[1,gvTerminados.RowCount -1] := VarToStr(Qry['ITE_Nombre']);
-        gvTerminados.Cell[2,gvTerminados.RowCount -1].AsInteger := StrToInt( VarToStr(Qry['Late']) );
-        Qry.Next;
-    End;
-
-    Qry.Close;
-    Conn.Close;
+      gvTerminados.ClearRows;
+      While not Qry.Eof do
+      Begin
+          gvTerminados.AddRow(1);
+          gvTerminados.Cells[0,gvTerminados.RowCount -1] := VarToStr(Qry['ITE_ID']);
+          gvTerminados.Cells[1,gvTerminados.RowCount -1] := VarToStr(Qry['ITE_Nombre']);
+          gvTerminados.Cell[2,gvTerminados.RowCount -1].AsInteger := StrToInt( VarToStr(Qry['Late']) );
+          Qry.Next;
+      End;
+    end
+    finally
+      if Qry <> nil then Qry.Close;
+      if Conn <> nil then Conn.Close;
+    end;
 end;
 
 procedure TfrmMain.BindRetrabajo();
@@ -315,72 +417,91 @@ var Conn : TADOConnection;
 Qry : TADOQuery;
 SQLStr : String;
 begin
-    //Create Connection
-    Conn := TADOConnection.Create(nil);
-    Conn.ConnectionString := gsConnString;
-    Conn.LoginPrompt := False;
-    Qry := TADOQuery.Create(nil);
-    Qry.Connection :=Conn;
+    Qry := nil;
+    Conn := nil;
+    try
+    begin
+      Conn := TADOConnection.Create(nil);
+      Conn.ConnectionString := gsConnString;
+      Conn.LoginPrompt := False;
+      Qry := TADOQuery.Create(nil);
+      Qry.Connection :=Conn;
 
-    SQLStr := 'SELECT I.ITE_ID,RTRIM(I.ITE_Nombre) AS ITE_Nombre, ' +
-              'CASE WHEN ITS_Status = 2 THEN 0 ' +
-              'WHEN dbo.GetHours(I.ITS_DTStart,GETDATE()) > T.Tiempo THEN 1 ' +
-              'WHEN dbo.GetHours(O.Interna,GETDATE()) > T.Interno THEN 1 ' +
-              'WHEN I2.ITE_Priority > 0.00 THEN 2 ' +
-              'ELSE 0 END AS Late, ' +
-              'I2.ITE_Status ' +
-              'FROM tblItemTasks I ' +
-              'INNER JOIN tblTareas T ON I.TAS_ID = T.[ID] ' +
-              'INNER JOIN tblItems I2 ON I2.ITE_ID = I.ITE_ID ' +
-              'INNER JOIN tblOrdenes O ON I.ITE_ID = O.ITE_ID ' +
-              'WHERE T.Nombre = ' + QuotedStr(gsTask) + ' AND I.ITS_Status = 3';
+      SQLStr := 'SELECT I.ITE_ID,RTRIM(I.ITE_Nombre) AS ITE_Nombre, ' +
+                'CASE WHEN ITS_Status = 2 THEN 0 ' +
+                'WHEN dbo.GetHours(I.ITS_DTStart,GETDATE()) > T.Tiempo THEN 1 ' +
+                'WHEN dbo.GetHours(O.Interna,GETDATE()) > T.Interno THEN 1 ' +
+                'WHEN I2.ITE_Priority > 0.00 THEN 2 ' +
+                'ELSE 0 END AS Late, ' +
+                'I2.ITE_Status ' +
+                'FROM tblItemTasks I ' +
+                'INNER JOIN tblTareas T ON I.TAS_ID = T.[ID] AND T.Nombre = ' + QuotedStr(gsTask) + ' AND I.ITS_Status = 3 ' +
+                'INNER JOIN tblItems I2 ON I2.ITE_ID = I.ITE_ID ' +
+                'INNER JOIN tblOrdenes O ON I.ITE_ID = O.ITE_ID ';
 
-    SQLStr := SQLStr + lblQuery.Caption;
-    SQLStr := SQLStr + ' ORDER BY I.ITS_DTStart Desc' ;
-    Qry.SQL.Clear;
-    Qry.SQL.Text := SQLStr;
-    Qry.Open;
+      if lblQuery.Caption <> '' then begin
+        SQLStr := SQLStr + 'WHERE ' + lblQuery.Caption;
+      end;
+
+      SQLStr := SQLStr + ' ORDER BY I.ITS_DTStart Desc' ;
+      Qry.SQL.Clear;
+      Qry.SQL.Text := SQLStr;
+      Qry.Open;
 
 
-    gvRetrabajo.ClearRows;
-    While not Qry.Eof do
-    Begin
-        gvRetrabajo.AddRow(1);
-        gvRetrabajo.Cells[0,gvRetrabajo.RowCount -1] := VarToStr(Qry['ITE_ID']);
-        gvRetrabajo.Cells[1,gvRetrabajo.RowCount -1] := VarToStr(Qry['ITE_Nombre']);
-        gvRetrabajo.Cell[2,gvRetrabajo.RowCount -1].AsInteger := StrToInt( VarToStr(Qry['Late']) );
-        Qry.Next;
-    End;
-
-    Qry.Close;
-    Conn.Close;
+      gvRetrabajo.ClearRows;
+      while not Qry.Eof do
+      begin
+          gvRetrabajo.AddRow(1);
+          gvRetrabajo.Cells[0,gvRetrabajo.RowCount -1] := VarToStr(Qry['ITE_ID']);
+          gvRetrabajo.Cells[1,gvRetrabajo.RowCount -1] := VarToStr(Qry['ITE_Nombre']);
+          gvRetrabajo.Cell[2,gvRetrabajo.RowCount -1].AsInteger := StrToInt( VarToStr(Qry['Late']) );
+          Qry.Next;
+      end;
+    end
+    finally
+      if Qry <> nil then Qry.Close;
+      if Conn <> nil then Conn.Close;
+    end;
 end;
+
 
 procedure TfrmMain.BindAnteriores();
 var Conn : TADOConnection;
 Qry : TADOQuery;
 SQLStr : String;
 begin
-    //Create Connection
-    Conn := TADOConnection.Create(nil);
-    Conn.ConnectionString := gsConnString;
-    Conn.LoginPrompt := False;
-    Qry := TADOQuery.Create(nil);
-    Qry.Connection :=Conn;
+    Qry := nil;
+    Conn := nil;
+    try
+    begin
+      Conn := TADOConnection.Create(nil);
+      Conn.ConnectionString := gsConnString;
+      Conn.LoginPrompt := False;
+      Qry := TADOQuery.Create(nil);
+      Qry.Connection :=Conn;
 
-    SQLStr := 'Ordenes_Antes_Tarea ' + QuotedStr(gsTask) + ',' + QuotedStr(lblQuery.Caption);
+      SQLStr := 'Ordenes_Antes_Tarea ' + QuotedStr(gsTask) + ',' + QuotedStr(lblQuery.Caption);
 
-    Qry.SQL.Clear;
-    Qry.SQL.Text := SQLStr;
-    Qry.Open;
+      Qry.SQL.Clear;
+      Qry.SQL.Text := SQLStr;
+      Qry.Open;
 
-    lblAntes.Caption := 'Ordenes Antes de ' + gsTask + ': 0';
-    if Qry.RecordCount >= 0 then begin
-        lblAntes.Caption := 'Ordenes Antes de ' + gsTask + ' : ' + VarToStr(Qry['Antes']);
+      lblAntes.Caption := 'Ordenes Antes de ' + gsTask + ': 0';
+      if Qry.RecordCount >= 0 then begin
+          lblAntes.Caption := 'Ordenes Antes de ' + gsTask + ' : ' + VarToStr(Qry['Antes']);
+      end;
+    end
+    finally
+      if Qry <> nil then begin
+        Qry.Close;
+        Qry.Free;
+      end;
+      if Conn <> nil then begin
+        Conn.Close;
+        Conn.Free
+      end;
     end;
-
-    Qry.Close;
-    Conn.Close;
 end;
 
 
@@ -414,109 +535,120 @@ var Conn : TADOConnection;
 Qry : TADOQuery;
 SQLStr : String;
 begin
-    Conn := TADOConnection.Create(nil);
-    Conn.ConnectionString := gsConnString;
-    Conn.LoginPrompt := False;
-    Qry := TADOQuery.Create(nil);
-    Qry.Connection := Conn;
-
-    if Status = 'gvListos' then
-      begin
-            SQLStr := 'SELECT O.*,IT.*,I.ITE_Priority FROM tblOrdenes O ' +
-                      'INNER JOIN tblItems I ON O.ITE_ID = I.ITE_ID ' +
-                      'INNER JOIN tblItemTasks IT ON IT.ITE_ID = I.ITE_ID ' +
-                      'INNER JOIN tblTareas T ON T.[ID] = IT.TAS_ID AND T.Nombre = ' + QuotedStr(gsTask) + ' ' +
-                      'WHERE O.ITE_ID = ' + Item;
-      end
-    else
-      begin
-            SQLStr := 'SELECT O.*,IT.*,CASE WHEN E.Nombre IS NULL THEN '''' ELSE E.Nombre END AS Empleado,' +
-                      'I.ITE_Priority FROM tblOrdenes O ' +
-                      'INNER JOIN tblItems I ON O.ITE_ID = I.ITE_ID ' +
-                      'INNER JOIN tblItemTasks IT ON IT.ITE_ID = I.ITE_ID ' +
-                      'INNER JOIN tblTareas T ON T.[ID] = IT.TAS_ID AND T.Nombre = ' + QuotedStr(gsTask) + ' ' +
-                      'LEFT OUTER JOIN tblEmpleados E ON IT.USE_LOGIN = E.[ID] ' +
-                      'WHERE O.ITE_ID = ' + Item;
-      end;
-
-    Qry.SQL.Clear;
-    Qry.SQL.Text := SQLStr;
-    Qry.Open;
-
-    gvPropiedades.ClearRows;
-    if Qry.RecordCount > 0 then
+    Qry := nil;
+    Conn := nil;
+    try
     begin
-        gvPropiedades.AddRow(1);
-        gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'Tipo Proceso';
-        gvPropiedades.Cells[1,gvPropiedades.RowCount -1] := VarToStr(Qry['TipoProceso']);
+      Conn := TADOConnection.Create(nil);
+      Conn.ConnectionString := gsConnString;
+      Conn.LoginPrompt := False;
+      Qry := TADOQuery.Create(nil);
+      Qry.Connection := Conn;
 
-        gvPropiedades.AddRow(1);
-        gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'Cantidad Requerida';
-        gvPropiedades.Cells[1,gvPropiedades.RowCount -1] := VarToStr(Qry['Requerida']);
+      if Status = 'gvListos' then
+        begin
+              SQLStr := 'SELECT O.*,IT.*,I.ITE_Priority FROM tblOrdenes O ' +
+                        'INNER JOIN tblItems I ON O.ITE_ID = I.ITE_ID ' +
+                        'INNER JOIN tblItemTasks IT ON IT.ITE_ID = I.ITE_ID ' +
+                        'INNER JOIN tblTareas T ON T.[ID] = IT.TAS_ID AND T.Nombre = ' + QuotedStr(gsTask) + ' ' +
+                        'WHERE O.ITE_ID = ' + Item;
+        end
+      else
+        begin
+              SQLStr := 'SELECT O.*,IT.*,CASE WHEN E.Nombre IS NULL THEN '''' ELSE E.Nombre END AS Empleado,' +
+                        'I.ITE_Priority FROM tblOrdenes O ' +
+                        'INNER JOIN tblItems I ON O.ITE_ID = I.ITE_ID ' +
+                        'INNER JOIN tblItemTasks IT ON IT.ITE_ID = I.ITE_ID ' +
+                        'INNER JOIN tblTareas T ON T.[ID] = IT.TAS_ID AND T.Nombre = ' + QuotedStr(gsTask) + ' ' +
+                        'LEFT OUTER JOIN tblEmpleados E ON IT.USE_LOGIN = E.[ID] ' +
+                        'WHERE O.ITE_ID = ' + Item;
+        end;
 
-        gvPropiedades.AddRow(1);
-        gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'Cantidad Ordenada';
-        gvPropiedades.Cells[1,gvPropiedades.RowCount -1] := VarToStr(Qry['Ordenada']);
+      Qry.SQL.Clear;
+      Qry.SQL.Text := SQLStr;
+      Qry.Open;
 
-        gvPropiedades.AddRow(1);
-        gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'Descripcion';
-        gvPropiedades.Cells[1,gvPropiedades.RowCount -1] := VarToStr(Qry['Producto']);
+      gvPropiedades.ClearRows;
+      if Qry.RecordCount > 0 then
+      begin
+          gvPropiedades.AddRow(1);
+          gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'Tipo Proceso';
+          gvPropiedades.Cells[1,gvPropiedades.RowCount -1] := VarToStr(Qry['TipoProceso']);
 
-        gvPropiedades.AddRow(1);
-        gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'Numero';
-        gvPropiedades.Cells[1,gvPropiedades.RowCount -1] := VarToStr(Qry['Numero']);
+          gvPropiedades.AddRow(1);
+          gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'Cantidad Requerida';
+          gvPropiedades.Cells[1,gvPropiedades.RowCount -1] := VarToStr(Qry['Requerida']);
 
-        gvPropiedades.AddRow(1);
-        gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'Terminal';
-        gvPropiedades.Cells[1,gvPropiedades.RowCount -1] := VarToStr(Qry['Terminal']);
+          gvPropiedades.AddRow(1);
+          gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'Cantidad Ordenada';
+          gvPropiedades.Cells[1,gvPropiedades.RowCount -1] := VarToStr(Qry['Ordenada']);
 
-        gvPropiedades.AddRow(1);
-        gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'Fecha Recibido';
-        gvPropiedades.Cells[1,gvPropiedades.RowCount -1] := VarToStr(Qry['Recibido']);
+          gvPropiedades.AddRow(1);
+          gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'Descripcion';
+          gvPropiedades.Cells[1,gvPropiedades.RowCount -1] := VarToStr(Qry['Producto']);
 
-        gvPropiedades.AddRow(1);
-        gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'Fecha Interna';
-        gvPropiedades.Cells[1,gvPropiedades.RowCount -1] := VarToStr(Qry['Interna']);
+          gvPropiedades.AddRow(1);
+          gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'Numero';
+          gvPropiedades.Cells[1,gvPropiedades.RowCount -1] := VarToStr(Qry['Numero']);
 
-        gvPropiedades.AddRow(1);
-        gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'Fecha Entrega';
-        gvPropiedades.Cells[1,gvPropiedades.RowCount -1] := VarToStr(Qry['Entrega']);
+          gvPropiedades.AddRow(1);
+          gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'Terminal';
+          gvPropiedades.Cells[1,gvPropiedades.RowCount -1] := VarToStr(Qry['Terminal']);
 
-        gvPropiedades.AddRow(1);
-        gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'Nombre';
-        gvPropiedades.Cells[1,gvPropiedades.RowCount -1] := VarToStr(Qry['Nombre']);
+          gvPropiedades.AddRow(1);
+          gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'Fecha Recibido';
+          gvPropiedades.Cells[1,gvPropiedades.RowCount -1] := VarToStr(Qry['Recibido']);
 
-        gvPropiedades.AddRow(1);
-        gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'Prioridad';
-        gvPropiedades.Cells[1,gvPropiedades.RowCount -1] := VarToStr(Qry['ITE_Priority']);
+          gvPropiedades.AddRow(1);
+          gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'Fecha Interna';
+          gvPropiedades.Cells[1,gvPropiedades.RowCount -1] := VarToStr(Qry['Interna']);
 
-        if ( (VarToStr(Qry['ITS_Status']) <> '0') ) Then
-          begin
-                gvPropiedades.AddRow(1);
-                gvPropiedades.AddRow(1);
-                gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'Tarea';
+          gvPropiedades.AddRow(1);
+          gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'Fecha Entrega';
+          gvPropiedades.Cells[1,gvPropiedades.RowCount -1] := VarToStr(Qry['Entrega']);
 
-                //gvPropiedades.AddRow(1);
-                //gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'No.Empleado';
-                //gvPropiedades.Cells[1,gvPropiedades.RowCount -1] := UT(VarToStr(Qry['USE_Login']));
+          gvPropiedades.AddRow(1);
+          gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'Nombre';
+          gvPropiedades.Cells[1,gvPropiedades.RowCount -1] := VarToStr(Qry['Nombre']);
 
-                gvPropiedades.AddRow(1);
-                gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'Nombre';
-                gvPropiedades.Cells[1,gvPropiedades.RowCount -1] := VarToStr(Qry['Empleado']);
+          gvPropiedades.AddRow(1);
+          gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'Prioridad';
+          gvPropiedades.Cells[1,gvPropiedades.RowCount -1] := VarToStr(Qry['ITE_Priority']);
 
-                gvPropiedades.AddRow(1);
-                gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'Inicio';
-                gvPropiedades.Cells[1,gvPropiedades.RowCount -1] := VarToStr(Qry['ITS_DTStart']);
+          if ( (VarToStr(Qry['ITS_Status']) <> '0') ) Then
+            begin
+                  gvPropiedades.AddRow(1);
+                  gvPropiedades.AddRow(1);
+                  gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'Tarea';
 
-                gvPropiedades.AddRow(1);
-                gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'Termino';
-                gvPropiedades.Cells[1,gvPropiedades.RowCount -1] := VarToStr(Qry['ITS_DTStop']);
-          end;
+                  //gvPropiedades.AddRow(1);
+                  //gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'No.Empleado';
+                  //gvPropiedades.Cells[1,gvPropiedades.RowCount -1] := UT(VarToStr(Qry['USE_Login']));
+
+                  gvPropiedades.AddRow(1);
+                  gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'Nombre';
+                  gvPropiedades.Cells[1,gvPropiedades.RowCount -1] := VarToStr(Qry['Empleado']);
+
+                  gvPropiedades.AddRow(1);
+                  gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'Inicio';
+                  gvPropiedades.Cells[1,gvPropiedades.RowCount -1] := VarToStr(Qry['ITS_DTStart']);
+
+                  gvPropiedades.AddRow(1);
+                  gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'Termino';
+                  gvPropiedades.Cells[1,gvPropiedades.RowCount -1] := VarToStr(Qry['ITS_DTStop']);
+            end;
+      end;
+    end
+    finally
+      if Qry <> nil then begin
+        Qry.Close;
+        Qry.Free;
+      end;
+      if Conn <> nil then begin
+        Conn.Close;
+        Conn.Free
+      end;
     end;
-
-
-    Qry.Close;
-    Conn.Close;
 end;
 
 procedure TfrmMain.gvListosSelectCell(Sender: TObject; ACol,
@@ -535,11 +667,7 @@ begin
   end
   else if key = vk_F5 then
   begin
-        BindListos;
-        BindActivos;
-        BindRetrabajo();
-        BindTerminados;
-        BindAnteriores;
+    BindAll;
   end;
 end;
 
@@ -552,11 +680,7 @@ begin
   end
   else if key = vk_F5 then
   begin
-        BindListos;
-        BindActivos;
-        BindRetrabajo();
-        BindTerminados;
-        BindAnteriores;
+    BindAll;
   end;
 
 end;
@@ -566,9 +690,11 @@ var Task,Status,Msg : String;
 iInc : Integer;
 begin
         Timer2.Enabled := False;
+        Timer1.Enabled := False;
         if not ValidateEmpleado(txtEmpleado.Text) Then
           begin
                 ShowMessage('Numero de empleado incorrecto');
+                Timer1.Enabled := True;
                 Exit;
           end;
 
@@ -579,11 +705,18 @@ begin
               begin
                 if giConfirm = 1 then
                 begin
+                    if Status = '9' then begin
+                      ShowMessage('Esta orden esta declarada como Scrap.');
+                      Timer1.Enabled := True;
+                      Exit;
+                    end;
+
                     iInc := 1;
                     if Status = '3' then iInc := 0;
                     if MessageDlg('Estas seguro que quieres ' + GetStatusDes(StrToInt(Status) + iInc) +
                     ' la orden ' + txtOrden.Text  + '?',mtConfirmation, [mbYes, mbNo], 0) = mrNo then
                     begin
+                        Timer1.Enabled := True;
                         Exit;
                     end
                     else begin
@@ -609,30 +742,33 @@ begin
                                     frmScrap.lblStatus.Caption := Status;
                                     frmScrap.Show;
                               end;
+
                             self.Enabled := false;
-                            Timer2.Enabled := True;
                             Exit;
                             //**************************************************************8
                         end;
 
-                        ChangeStatus(txtOrden.Text,Status);
+                        ChangeStatus(txtOrden.Text,Status, true);
                         txtOrden.Text := '';
                         txtOrden.SetFocus;
                         Timer2.Enabled := True;
+                        Timer1.Enabled := True;
                         Exit;
                     end;
                 end
                 else begin
-                  ChangeStatus(txtOrden.Text,Status);
+                  ChangeStatus(txtOrden.Text,Status, true);
                   txtOrden.Text := '';
                   txtOrden.SetFocus;
                   Timer2.Enabled := True;
+                  Timer1.Enabled := True;
                   Exit;
                 end;
               end;
 
               if (Task = 'Ventas') and (Status = '1') then begin
                   ShowMessage('La orden esta pendiente de Plano, no puede entrar a produccion.');
+                  Timer1.Enabled := True;
                   Exit;
               end;
 
@@ -641,6 +777,7 @@ begin
                 mtConfirmation, [mbYes, mbNo], 0) = mrNo then
               begin
                   txtOrden.SetFocus;
+                  Timer1.Enabled := True;
                   Exit;
               end
               else begin
@@ -648,6 +785,7 @@ begin
                       txtOrden.Text := '';
                       txtOrden.SetFocus;
                       Timer2.Enabled := True;
+                      Timer1.Enabled := True;
                       Exit;
               end;
          end
@@ -659,6 +797,7 @@ begin
          end;
 
          txtOrden.SetFocus;
+         Timer1.Enabled := True;
 end;
 
 function TfrmMain.ValidateEmpleado(Id: String):Boolean;
@@ -670,23 +809,35 @@ begin
     if UT(Id) = '' then
         Exit;
 
-    Conn := TADOConnection.Create(nil);
-    Conn.ConnectionString := gsConnString;
-    Conn.LoginPrompt := False;
-    Qry := TADOQuery.Create(nil);
-    Qry.Connection := Conn;
+    Qry := nil;
+    Conn := nil;
+    try
+    begin
+      Conn := TADOConnection.Create(nil);
+      Conn.ConnectionString := gsConnString;
+      Conn.LoginPrompt := False;
+      Qry := TADOQuery.Create(nil);
+      Qry.Connection := Conn;
 
-    SQLStr := 'SELECT Nombre FROM tblEmpleados WHERE Id =  ' + IntToStr(StrToInt(Id));
+      SQLStr := 'SELECT Nombre FROM tblEmpleados WHERE Id =  ' + IntToStr(StrToInt(Id));
 
-    Qry.SQL.Clear;
-    Qry.SQL.Text := SQLStr;
-    Qry.Open;
+      Qry.SQL.Clear;
+      Qry.SQL.Text := SQLStr;
+      Qry.Open;
 
-    if Qry.RecordCount > 0 then
-        Result := True;
-
-    Qry.Close;
-    Conn.Close;
+      if Qry.RecordCount > 0 then
+          Result := True;
+    end
+    finally
+      if Qry <> nil then begin
+        Qry.Close;
+        Qry.Free;
+      end;
+      if Conn <> nil then begin
+        Conn.Close;
+        Conn.Free
+      end;
+    end;
 end;
 
 function TfrmMain.ValidateOrden(Orden: String; var Msg,Task,Status: String):Boolean;
@@ -695,41 +846,54 @@ Qry : TADOQuery;
 SQLStr : String;
 begin
     Result := False;
-    Conn := TADOConnection.Create(nil);
-    Conn.ConnectionString := gsConnString;
-    Conn.LoginPrompt := False;
-    Qry := TADOQuery.Create(nil);
-    Qry.Connection := Conn;
+    Qry := nil;
+    Conn := nil;
 
-    SQLStr := 'ItemStatus ' + QuotedStr(Orden) + ',' + QuotedStr(gsTask);
-
-    Qry.SQL.Clear;
-    Qry.SQL.Text := SQLStr;
-    Qry.Open;
-
-    if Qry.RecordCount <= 0 then
+    try
     begin
-        MessageDlg('La orden no existe en el sistema.', mtInformation, [mbOK],0);
-        Result := False;
-    end;
+      Conn := TADOConnection.Create(nil);
+      Conn.ConnectionString := gsConnString;
+      Conn.LoginPrompt := False;
+      Qry := TADOQuery.Create(nil);
+      Qry.Connection := Conn;
 
-    Msg := Qry['Msg'];
-    Task := Qry['Task'];
-    Status := Qry['Status'];
+      SQLStr := 'ItemStatus ' + QuotedStr(Orden) + ',' + QuotedStr(gsTask);
 
-    if Qry['Res'] = 0 then
-    begin
-        Result := False;
+      Qry.SQL.Clear;
+      Qry.SQL.Text := SQLStr;
+      Qry.Open;
+
+      if Qry.RecordCount <= 0 then
+      begin
+          MessageDlg('La orden no existe en el sistema.', mtInformation, [mbOK],0);
+          Result := False;
+      end;
+
+      Msg := VartoStr(Qry['Msg']);
+      Task := Qry['Task'];
+      Status := Qry['Status'];
+
+      if Qry['Res'] = 0 then
+      begin
+          Result := False;
+      end
+      else begin
+          {Msg := Qry['Msg'];
+          Task := VartoStr(Qry['Task']);
+          Status := GetStatus(Qry['Status']);}
+          Result := True;
+      end;
     end
-    else begin
-{       Msg := Qry['Msg'];
-        Task := VartoStr(Qry['Task']);
-        Status := GetStatus(Qry['Status']);}
-        Result := True;
+    finally
+      if Qry <> nil then begin
+        Qry.Close;
+        Qry.Free;
+      end;
+      if Conn <> nil then begin
+        Conn.Close;
+        Conn.Free
+      end;
     end;
-
-    Qry.Close;
-    Conn.Close;
 end;
 
 
@@ -792,11 +956,7 @@ procedure TfrmMain.FormKeyDown(Sender: TObject; var Key: Word;
 begin
         if Key = vk_F5 then
         begin
-              BindListos;
-              BindActivos;
-              BindRetrabajo();
-              BindTerminados;
-              BindAnteriores;
+          BindAll;
         end;
 end;
 
@@ -805,81 +965,79 @@ procedure TfrmMain.gvListosKeyDown(Sender: TObject; var Key: Word;
 begin
   if key = vk_F5 then
   begin
-        BindListos;
-        BindActivos;
-        BindRetrabajo();
-        BindTerminados;
-        BindAnteriores;
+    BindAll;
   end;
-
-
-  {if (ssAlt in Shift) and (  chr(Key) = 'C') then
-  begin
-        showmessage('ss');
-  end;}
-
-
 end;
 
 procedure TfrmMain.Timer1Timer(Sender: TObject);
 Var  IniFile: TIniFile;
 begin
-        StartDDir := ExtractFileDir(ParamStr(0)) + '\';
-        IniFile := TiniFile.Create(StartDDir + 'Larco.ini');
+    StartDDir := ExtractFileDir(ParamStr(0)) + '\';
+    IniFile := TiniFile.Create(StartDDir + 'Larco.ini');
 
-        giIntervalo := StrToInt(IniFile.ReadString('Tasks','Refresh','30000'));
-        Timer1.Interval := giIntervalo;
-        BindListos;
-        BindActivos;
-        BindRetrabajo();
-        BindTerminados;
-        BindAnteriores;
-        BindStats;
+    giIntervalo := StrToInt(IniFile.ReadString('Tasks','Refresh','30000'));
+    Timer1.Interval := giIntervalo;
+
+    BindAll;
 end;
 
-procedure TfrmMain.ChangeStatus(Orden,Status : String);
+procedure TfrmMain.ChangeStatus(Orden,Status : String; update: Boolean);
 var Conn : TADOConnection;
 Qry : TADOQuery;
 SQLStr : String;
 begin
-    Conn := TADOConnection.Create(nil);
-    Conn.ConnectionString := gsConnString;
-    Conn.LoginPrompt := False;
-    Qry := TADOQuery.Create(nil);
-    Qry.Connection := Conn;
 
-    SQLStr := 'ChangeStatus ' + QuotedStr(Orden) + ',' + QuotedStr(gsTask)+
-              ',' + Status + ',' + QuotedStr(txtEmpleado.Text) +
-              ',' + QuotedStr(GetLocalIP);
+    Qry := nil;
+    Conn := nil;
+    try
+    begin
+      Conn := TADOConnection.Create(nil);
+      Conn.ConnectionString := gsConnString;
+      Conn.LoginPrompt := False;
+      Qry := TADOQuery.Create(nil);
+      Qry.Connection := Conn;
 
-    Qry.SQL.Clear;
-    Qry.SQL.Text := SQLStr;
-    Qry.Open;
+      SQLStr := 'ChangeStatus ' + QuotedStr(Orden) + ',' + QuotedStr(gsTask)+
+                ',' + Status + ',' + QuotedStr(txtEmpleado.Text) +
+                ',' + QuotedStr(GetLocalIP);
+
+      Qry.SQL.Clear;
+      Qry.SQL.Text := SQLStr;
+      Qry.Open;
 
 
-    if Qry.RecordCount <= 0 then begin
-       MessageDlg('Ocurrio un error mientras se cambiaba la orden de status.', mtInformation, [mbOK],0);
-       Exit;
+      if Qry.RecordCount <= 0 then begin
+         MessageDlg('Ocurrio un error mientras se cambiaba la orden de status.', mtInformation, [mbOK],0);
+         Exit;
+      end
+      else
+        begin
+          if VarToStr(Qry['Error']) = '1' then begin
+                 MessageDlg(VarToStr(Qry['MSG']), mtInformation, [mbOK],0);
+                 Exit;
+            end
+          else
+            begin
+                 if Status = '1' Then
+                         MessageDlg('Por favor lleve la orden ' + Orden + ' a la tarea ' + VarToStr(Qry['Msg']) + '.', mtInformation, [mbOK],0);
+            end;
+
+        end;
     end
-    else
-      begin
-        if VarToStr(Qry['Error']) = '1' then begin
-               MessageDlg(VarToStr(Qry['MSG']), mtInformation, [mbOK],0);
-               Exit;
-          end
-        else
-          begin
-               if Status = '1' Then
-                       MessageDlg('Por favor lleve la orden ' + Orden + ' a la tarea ' + VarToStr(Qry['Msg']) + '.', mtInformation, [mbOK],0);
-          end;
-
+    finally
+      if Qry <> nil then begin
+        Qry.Close;
+        Qry.Free;
       end;
+      if Conn <> nil then begin
+        Conn.Close;
+        Conn.Free
+      end;
+    end;
 
-BindListos;
-BindActivos;
-BindRetrabajo();
-BindTerminados;
-BindAnteriores;
+    if(update) then begin
+      BindAll;
+    end;
 //txtempleado.SetFocus;
 end;
 
@@ -950,20 +1108,27 @@ procedure TfrmMain.ActivarOrden(Orden,Task,User : String);
 var Conn : TADOConnection;
 SQLStr : String;
 begin
-    Conn := TADOConnection.Create(nil);
-    Conn.ConnectionString := gsConnString;
-    Conn.LoginPrompt := False;
 
-    SQLStr := 'ActivarOrden ' + QuotedStr(Orden) + ',' + QuotedStr(Task) + ',' +
-              QuotedStr(User) + ',' + QuotedStr(GetLocalIP);
+    Conn := nil;
+    try
+    begin
+      Conn := TADOConnection.Create(nil);
+      Conn.ConnectionString := gsConnString;
+      Conn.LoginPrompt := False;
 
-    Conn.Execute(SQLStr);
+      SQLStr := 'ActivarOrden ' + QuotedStr(Orden) + ',' + QuotedStr(Task) + ',' +
+                QuotedStr(User) + ',' + QuotedStr(GetLocalIP);
 
-    BindListos;
-    BindActivos;
-    BindRetrabajo();
-    BindTerminados;
-    BindAnteriores;
+      Conn.Execute(SQLStr);
+    end
+    finally
+      if Conn <> nil then begin
+        Conn.Close;
+        Conn.Free
+      end;
+    end;
+
+    BindAll;
 end;
 
 function TfrmMain.FormIsRunning(FormName: String):Boolean;

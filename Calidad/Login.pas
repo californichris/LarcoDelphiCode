@@ -68,33 +68,40 @@ Qry : TADOQuery;
 SQLStr : String;
 begin
     Result := False;
-    //Create Connection
-    Conn := TADOConnection.Create(nil);
-    Conn.ConnectionString := gsConnString;
-    Conn.LoginPrompt := False;
-    Qry := TADOQuery.Create(nil);
-    Qry.Connection :=Conn;
+    Qry := nil;
+    Conn := nil;
+    try
+    begin
+      Conn := TADOConnection.Create(nil);
+      Conn.ConnectionString := gsConnString;
+      Conn.LoginPrompt := False;
+      Qry := TADOQuery.Create(nil);
+      Qry.Connection :=Conn;
 
-    SQLStr := 'SELECT TOP 1 U.USE_ID FROM tblusers U ' +
-              'INNER JOIN tblUser_groups UG ON U.USE_ID = UG.USE_ID ' +
-              'INNER JOIN tblGroups G ON UG.Group_ID = G.Group_ID ' +
-              'WHERE Group_Name = ' + QuotedStr('Calidad') +
-              ' AND U.USE_Login = ' + QuotedStr(User) + ' and U.USE_Password = ' + QuotedStr(Password);
-{
-    SQLStr := 'SELECT USE_ID FROM tblUsers WHERE USE_Login = ' + QuotedStr(User) +
-              ' AND USE_Password = ' + QuotedStr(Password);
- }
+      SQLStr := 'SELECT TOP 1 U.USE_ID FROM tblusers U ' +
+                'INNER JOIN tblUser_groups UG ON U.USE_ID = UG.USE_ID ' +
+                'INNER JOIN tblGroups G ON UG.Group_ID = G.Group_ID ' +
+                'WHERE Group_Name = ' + QuotedStr('Calidad') +
+                ' AND U.USE_Login = ' + QuotedStr(User) + ' and U.USE_Password = ' + QuotedStr(Password);
 
-    Qry.SQL.Clear;
-    Qry.SQL.Text := SQLStr;
-    Qry.Open;
+      Qry.SQL.Clear;
+      Qry.SQL.Text := SQLStr;
+      Qry.Open;
 
-    if Qry.RecordCount > 0 then begin
-        Result := True;
+      if Qry.RecordCount > 0 then begin
+          Result := True;
+      end;
+    end
+    finally
+      if Qry <> nil then begin
+        Qry.Close;
+        Qry.Free;
+      end;
+      if Conn <> nil then begin
+        Conn.Close;
+        Conn.Free
+      end;
     end;
-
-    Qry.Close;
-    Conn.Close;
 end;
 
 procedure TfrmLogin.txtUserKeyPress(Sender: TObject; var Key: Char);
@@ -127,8 +134,6 @@ begin
     sPassword := IniFile.ReadString('Conn','Password','');
     gsConnString := 'Provider=SQLOLEDB.1;Persist Security Info=False;User ID=' + sUser +
                    ';Password= ' + sPassword +'; Initial Catalog=' + sDB + ';Data Source=' + sServer;
-
-
 end;
 
 end.

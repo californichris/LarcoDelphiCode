@@ -244,52 +244,62 @@ var Conn : TADOConnection;
 Qry : TADOQuery;
 SQLStr : String;
 begin
-    //Create Connection
-    Conn := TADOConnection.Create(nil);
-    Conn.ConnectionString := gsConnString;
-    Conn.LoginPrompt := False;
-    Qry := TADOQuery.Create(nil);
-    Qry.Connection :=Conn;
+    Qry := nil;
+    Conn := nil;
+    try
+    begin
+      Conn := TADOConnection.Create(nil);
+      Conn.ConnectionString := gsConnString;
+      Conn.LoginPrompt := False;
+      Qry := TADOQuery.Create(nil);
+      Qry.Connection :=Conn;
 
-    if Field = 'Producto' then
-      begin
-          SQLStr := 'SELECT Distinct Nombre FROM tblProductos ORDER BY Nombre';
-          Field := 'Nombre';
-      end
-    else if Field = 'Cliente' then
-      begin
-          SQLStr := 'SELECT Distinct Clave FROM tblClientes ORDER BY Clave';
-          Field := 'Clave';
-      end
-    else if Field = 'Orden' then
-      begin
-          SQLStr := 'SELECT DISTINCT SUBSTRING(ITE_Nombre,8,3) AS Orden ' +
-                    'FROM tblItemTasks I ' +
-                    'INNER JOIN tblTareas T ON I.TAS_ID = T.[ID] ' +
-                    'WHERE T.Nombre = ' + QuotedStr(lblTask.Caption) + ' ORDER BY SUBSTRING(ITE_Nombre,8,3)';
-          Field := 'Orden';
-      end
-    else if Field = 'Empleado' then
-      begin
-          SQLStr := 'SELECT Distinct Nombre FROM tblEmpleados ORDER BY Nombre';
-          Field := 'Nombre';
+      if Field = 'Producto' then
+        begin
+            SQLStr := 'SELECT Distinct Nombre FROM tblProductos ORDER BY Nombre';
+            Field := 'Nombre';
+        end
+      else if Field = 'Cliente' then
+        begin
+            SQLStr := 'SELECT Distinct Clave FROM tblClientes ORDER BY Clave';
+            Field := 'Clave';
+        end
+      else if Field = 'Orden' then
+        begin
+            SQLStr := 'SELECT DISTINCT SUBSTRING(ITE_Nombre,8,3) AS Orden ' +
+                      'FROM tblItemTasks I ' +
+                      'INNER JOIN tblTareas T ON I.TAS_ID = T.[ID] ' +
+                      'WHERE T.Nombre = ' + QuotedStr(lblTask.Caption) + ' ORDER BY SUBSTRING(ITE_Nombre,8,3)';
+            Field := 'Orden';
+        end
+      else if Field = 'Empleado' then
+        begin
+            SQLStr := 'SELECT Distinct Nombre FROM tblEmpleados ORDER BY Nombre';
+            Field := 'Nombre';
+        end;
+
+
+      Qry.SQL.Clear;
+      Qry.SQL.Text := SQLStr;
+      Qry.Open;
+
+
+      ddlValue.Clear;
+      while not Qry.Eof do begin
+          ddlValue.Items.Add(VarToStr(Qry[Field]) );
+          Qry.Next;
       end;
-
-
-    Qry.SQL.Clear;
-    Qry.SQL.Text := SQLStr;
-    Qry.Open;
-
-
-    ddlValue.Clear;
-    While not Qry.Eof do
-    Begin
-        ddlValue.Items.Add(VarToStr(Qry[Field]) );
-        Qry.Next;
-    End;
-
-    Qry.Close;
-    Conn.Close;
+    end
+    finally
+      if Qry <> nil then begin
+        Qry.Close;
+        Qry.Free;
+      end;
+      if Conn <> nil then begin
+        Conn.Close;
+        Conn.Free
+      end;
+    end;
 end;
 
 
@@ -315,213 +325,224 @@ begin
 
     slFields := TStringList.Create;
     slDBFields := TStringList.Create;
-    //Create Connection
-    Conn := TADOConnection.Create(nil);
-    Conn.ConnectionString := gsConnString;
-    Conn.LoginPrompt := False;
-    Qry := TADOQuery.Create(nil);
-    Qry.Connection :=Conn;
 
-    SQLStr := 'SELECT ';
+    Qry := nil;
+    Conn := nil;
+    try
+    begin
+      Conn := TADOConnection.Create(nil);
+      Conn.ConnectionString := gsConnString;
+      Conn.LoginPrompt := False;
+      Qry := TADOQuery.Create(nil);
+      Qry.Connection :=Conn;
 
-    for i := 0 to gvCampos.RowCount - 1 do
+      SQLStr := 'SELECT ';
+
+      for i := 0 to gvCampos.RowCount - 1 do
+          begin
+                  if gvCampos.Cell[2,i].AsBoolean = True then
+                  begin
+                    sDBFields := sDBFields + gvCampos.Cells[0,i] + ',';
+                    sFields := sFields + gvCampos.Cells[1,i] + ',';
+                  end;
+          end;
+
+      sDBFields := LeftStr(sDBFields,Length(sDBFields) - 1);
+      sFields := LeftStr(sFields,Length(sFields) - 1);
+
+      SQLStr := SQLStr + sDBFields + ' ' +
+                'FROM tblItemTasks I ' +
+                'INNER JOIN tblTareas T ON I.TAS_ID = T.[ID] ' +
+                'INNER JOIN tblOrdenes O ON I.ITE_ID = O.ITE_ID ';
+
+      if lblTask2.Caption = 'Todas' then
+              SQLStr := SQLStr + 'WHERE LEFT(T.Nombre,LEN(' + QuotedStr(lblTask.Caption) + ')) = ' + QuotedStr(lblTask.Caption)
+      else
+              SQLStr := SQLStr + 'WHERE T.Nombre = ' + QuotedStr(lblTask2.Caption);
+
+      if chkRecibido.Checked Then
         begin
-                if gvCampos.Cell[2,i].AsBoolean = True then
-                begin
-                  sDBFields := sDBFields + gvCampos.Cells[0,i] + ',';
-                  sFields := sFields + gvCampos.Cells[1,i] + ',';
-                end;
+           SQLStr := SQLStr + ' AND ( O.Recibido >= ' + QuotedStr(deRecibido1.Text) +
+                     ' AND O.Recibido <= '+ QuotedStr(deRecibido2.Text + ' 23:59:59.99') + ')';
         end;
 
-    sDBFields := LeftStr(sDBFields,Length(sDBFields) - 1);
-    sFields := LeftStr(sFields,Length(sFields) - 1);
+      if CheckBox1.Checked Then
+          sStatus := sStatus + '1,';
 
-    SQLStr := SQLStr + sDBFields + ' ' +
-              'FROM tblItemTasks I ' +
-              'INNER JOIN tblTareas T ON I.TAS_ID = T.[ID] ' +
-              'INNER JOIN tblOrdenes O ON I.ITE_ID = O.ITE_ID ';
+      if CheckBox2.Checked Then
+          sStatus := sStatus + '2,';
 
-    if lblTask2.Caption = 'Todas' then
-            SQLStr := SQLStr + 'WHERE LEFT(T.Nombre,LEN(' + QuotedStr(lblTask.Caption) + ')) = ' + QuotedStr(lblTask.Caption)
-    else
-            SQLStr := SQLStr + 'WHERE T.Nombre = ' + QuotedStr(lblTask2.Caption);
+      if CheckBox3.Checked Then
+          sStatus := sStatus + '3,';
 
-    if chkRecibido.Checked Then
-      begin
-         SQLStr := SQLStr + ' AND ( O.Recibido >= ' + QuotedStr(deRecibido1.Text) +
-                   ' AND O.Recibido <= '+ QuotedStr(deRecibido2.Text + ' 23:59:59.99') + ')';
-      end;
+      SQLStr := SQLStr + ' AND I.ITS_Status in (' +  LeftStr(sStatus,Length(sStatus) - 1) + ')';
 
-    if CheckBox1.Checked Then
-        sStatus := sStatus + '1,';
-
-    if CheckBox2.Checked Then
-        sStatus := sStatus + '2,';
-
-    if CheckBox3.Checked Then
-        sStatus := sStatus + '3,';
-
-    SQLStr := SQLStr + ' AND I.ITS_Status in (' +  LeftStr(sStatus,Length(sStatus) - 1) + ')';
-
-    if chkInterna.Checked Then
-      begin
-         SQLStr := SQLStr + ' AND ( O.Interna >= ' + QuotedStr(deInterna1.Text) +
-                   ' AND O.Interna <= '+ QuotedStr(deInterna2.Text + ' 23:59:59.99') + ')';
-      end;
-
-    if chkEntrega.Checked Then
-      begin
-         SQLStr := SQLStr + ' AND ( O.Entrega >= ' + QuotedStr(deEntrega1.Text) +
-                   ' AND O.Entrega <= '+ QuotedStr(deEntrega2.Text + ' 23:59:59.99') + ')' ;
-      end;
-
-    if rbtAtrasadas.Checked Then
-        SQLStr := SQLStr + ' AND dbo.GetHours(I.ITS_DTStart,GETDATE()) > T.Tiempo';
-
-
-    for i := 0 to GridView1.RowCount - 1 do
+      if chkInterna.Checked Then
         begin
-                if i = 0 then
-                   sWhere := sWhere + ' AND '
-                else
-                   sWhere := sWhere + ' ' + GridView1.Cells[3,i];
-
-                if GridView1.Cells[0,i] = 'Producto' then
-                        sWhere := sWhere + ' O.Producto ';
-
-                if GridView1.Cells[0,i] = 'Cliente' then
-                        sWhere := sWhere + ' LEFT(I.ITE_Nombre,3) ';
-
-                if GridView1.Cells[0,i] = 'Empleado' then
-                        sWhere := sWhere + ' O.Nombre ';
-
-                if (GridView1.Cells[1,i] = '=') or (GridView1.Cells[1,i] = '<>') then
-                        sWhere := sWhere + ' ' + GridView1.Cells[1,i] + ' ' +
-                                  QuotedStr(GridView1.Cells[2,i]);
-
-                if (GridView1.Cells[1,i] = 'Like') or (GridView1.Cells[1,i] = 'Not Like') then
-                        sWhere := sWhere + ' ' + GridView1.Cells[1,i] + ' ' +
-                                  QuotedStr('%' + GridView1.Cells[2,i] + '%');
+           SQLStr := SQLStr + ' AND ( O.Interna >= ' + QuotedStr(deInterna1.Text) +
+                     ' AND O.Interna <= '+ QuotedStr(deInterna2.Text + ' 23:59:59.99') + ')';
         end;
 
-    if sWhere <> '' Then SQLStr := SQLStr + sWhere;
-
-    for i := 0 to gvSort.RowCount - 1 do
+      if chkEntrega.Checked Then
         begin
-                if gvSort.Cell[2,i].AsBoolean = True then
-                begin
-                  sSort := sSort + gvSort.Cells[0,i] + ',';
-                end;
+           SQLStr := SQLStr + ' AND ( O.Entrega >= ' + QuotedStr(deEntrega1.Text) +
+                     ' AND O.Entrega <= '+ QuotedStr(deEntrega2.Text + ' 23:59:59.99') + ')' ;
         end;
 
-    sSort := LeftStr(sSort,Length(sSort) - 1);
-    if sSort <> '' Then SQLStr := SQLStr + ' ORDER BY ' + sSort;
+      if rbtAtrasadas.Checked Then
+          SQLStr := SQLStr + ' AND dbo.GetHours(I.ITS_DTStart,GETDATE()) > T.Tiempo';
 
 
-    Qry.SQL.Clear;
-    Qry.SQL.Text := SQLStr;
-    Qry.Open;
+      for i := 0 to GridView1.RowCount - 1 do
+          begin
+                  if i = 0 then
+                     sWhere := sWhere + ' AND '
+                  else
+                     sWhere := sWhere + ' ' + GridView1.Cells[3,i];
 
-    Application.Initialize;
-    Application.CreateForm(TPrintReport, PrintReport);
-    PrintReport.ReportTitle.Caption := 'Ordenes de Trbajo [' + lblTask.Caption + ']';
-    //PrintReport.lblType.Caption := '';
-    PrintReport.QRSubDetail1.DataSet := Qry;
+                  if GridView1.Cells[0,i] = 'Producto' then
+                          sWhere := sWhere + ' O.Producto ';
 
-    //Field1
-    slFields.CommaText := sFields;
-    slDBFields.CommaText := sDBFields;
+                  if GridView1.Cells[0,i] = 'Cliente' then
+                          sWhere := sWhere + ' LEFT(I.ITE_Nombre,3) ';
 
-    PrintReport.Field1.DataSet := Qry;
-    PrintReport.Field1.DataField := RightStr(slDBFields[0],Length(slDBFields[0]) - 2);
-    PrintReport.THeader1.Caption  := slFields[0];
-    PrintReport.Header1.Caption  := slFields[0];
+                  if GridView1.Cells[0,i] = 'Empleado' then
+                          sWhere := sWhere + ' O.Nombre ';
 
-    {PrintReport.Field1.Width := StrToInt(gsWidth[0]);
-    PrintReport.THeader1.Width := StrToInt(gsWidth[0]);
-    PrintReport.Header1.Width := StrToInt(gsWidth[0]);
-    }
-    //Field2
-    PrintReport.Field2.DataSet := Qry;
-    PrintReport.Field2.DataField := RightStr(slDBFields[1],Length(slDBFields[1]) - 2);
-    PrintReport.THeader2.Caption  := slFields[1];
-    PrintReport.Header2.Caption  := slFields[1];
+                  if (GridView1.Cells[1,i] = '=') or (GridView1.Cells[1,i] = '<>') then
+                          sWhere := sWhere + ' ' + GridView1.Cells[1,i] + ' ' +
+                                    QuotedStr(GridView1.Cells[2,i]);
 
-    {PrintReport.Field2.Left := StrToInt(gsWidth[0]) + 10;
-    PrintReport.THeader2.Left := StrToInt(gsWidth[0]) + 10;
-    PrintReport.THeader2.Left := StrToInt(gsWidth[0]) + 10;
+                  if (GridView1.Cells[1,i] = 'Like') or (GridView1.Cells[1,i] = 'Not Like') then
+                          sWhere := sWhere + ' ' + GridView1.Cells[1,i] + ' ' +
+                                    QuotedStr('%' + GridView1.Cells[2,i] + '%');
+          end;
 
+      if sWhere <> '' Then SQLStr := SQLStr + sWhere;
 
-    PrintReport.Field2.Width := StrToInt(gsWidth[1]);
-    PrintReport.THeader2.Width := StrToInt(gsWidth[1]);
-    PrintReport.Header2.Width := StrToInt(gsWidth[1]);
-    }
+      for i := 0 to gvSort.RowCount - 1 do
+          begin
+                  if gvSort.Cell[2,i].AsBoolean = True then
+                  begin
+                    sSort := sSort + gvSort.Cells[0,i] + ',';
+                  end;
+          end;
 
-    //Field3
-    PrintReport.Field3.DataSet := Qry;
-    PrintReport.Field3.DataField := RightStr(slDBFields[2],Length(slDBFields[2]) - 2);
-    PrintReport.THeader3.Caption  := slFields[2];
-    PrintReport.Header3.Caption  := slFields[2];
-
-    {PrintReport.Field3.Left := StrToInt(gsWidth[0]) + 10 + StrToInt(gsWidth[1]) + 10;
-    PrintReport.THeader3.Left := StrToInt(gsWidth[0]) + 10 + StrToInt(gsWidth[1]) + 10;
-    PrintReport.THeader3.Left := StrToInt(gsWidth[0]) + 10 + StrToInt(gsWidth[1]) + 10;
+      sSort := LeftStr(sSort,Length(sSort) - 1);
+      if sSort <> '' Then SQLStr := SQLStr + ' ORDER BY ' + sSort;
 
 
-    PrintReport.Field3.Width := StrToInt(gsWidth[2]);
-    PrintReport.THeader3.Width := StrToInt(gsWidth[2]);
-    PrintReport.Header3.Width := StrToInt(gsWidth[2]);
-    }
+      Qry.SQL.Clear;
+      Qry.SQL.Text := SQLStr;
+      Qry.Open;
 
-    //Field4
-    PrintReport.Field4.DataSet := Qry;
-    PrintReport.Field4.DataField := RightStr(slDBFields[3],Length(slDBFields[3]) - 2);
-    PrintReport.THeader4.Caption  := slFields[3];
-    PrintReport.Header4.Caption  := slFields[3];
+      Application.Initialize;
+      Application.CreateForm(TPrintReport, PrintReport);
+      PrintReport.ReportTitle.Caption := 'Ordenes de Trbajo [' + lblTask.Caption + ']';
+      //PrintReport.lblType.Caption := '';
+      PrintReport.QRSubDetail1.DataSet := Qry;
 
-    {PrintReport.Field4.Left := StrToInt(gsWidth[0]) + 10 + StrToInt(gsWidth[1]) + 10 + StrToInt(gsWidth[2]) + 10;
-    PrintReport.THeader4.Left := StrToInt(gsWidth[0]) + 10 + StrToInt(gsWidth[1]) + 10 + StrToInt(gsWidth[2]) + 10;
-    PrintReport.THeader4.Left := StrToInt(gsWidth[0]) + 10 + StrToInt(gsWidth[1]) + 10 + StrToInt(gsWidth[2]) + 10;
+      //Field1
+      slFields.CommaText := sFields;
+      slDBFields.CommaText := sDBFields;
 
+      PrintReport.Field1.DataSet := Qry;
+      PrintReport.Field1.DataField := RightStr(slDBFields[0],Length(slDBFields[0]) - 2);
+      PrintReport.THeader1.Caption  := slFields[0];
+      PrintReport.Header1.Caption  := slFields[0];
 
-    PrintReport.Field4.Width := StrToInt(gsWidth[3]);
-    PrintReport.THeader4.Width := StrToInt(gsWidth[3]);
-    PrintReport.Header4.Width := StrToInt(gsWidth[3]);
-    }
-    //Field5
-    PrintReport.Field5.DataSet := Qry;
-    PrintReport.Field5.DataField := RightStr(slDBFields[4],Length(slDBFields[4]) - 2);
-    PrintReport.THeader5.Caption  := slFields[4];
-    PrintReport.Header5.Caption  := slFields[4];
+      {PrintReport.Field1.Width := StrToInt(gsWidth[0]);
+      PrintReport.THeader1.Width := StrToInt(gsWidth[0]);
+      PrintReport.Header1.Width := StrToInt(gsWidth[0]);
+      }
+      //Field2
+      PrintReport.Field2.DataSet := Qry;
+      PrintReport.Field2.DataField := RightStr(slDBFields[1],Length(slDBFields[1]) - 2);
+      PrintReport.THeader2.Caption  := slFields[1];
+      PrintReport.Header2.Caption  := slFields[1];
 
-    {PrintReport.Field5.Left := StrToInt(gsWidth[0]) + 10 + StrToInt(gsWidth[1]) + 10 + StrToInt(gsWidth[2]) + 10 + StrToInt(gsWidth[3]) + 10;
-    PrintReport.THeader5.Left := StrToInt(gsWidth[0]) + 10 + StrToInt(gsWidth[1]) + 10 + StrToInt(gsWidth[2]) + 10 + StrToInt(gsWidth[3]) + 10;
-    PrintReport.THeader5.Left := StrToInt(gsWidth[0]) + 10 + StrToInt(gsWidth[1]) + 10 + StrToInt(gsWidth[2]) + 10 + StrToInt(gsWidth[3]) + 10;
-
-    PrintReport.Field5.Width := StrToInt(gsWidth[4]);
-    PrintReport.THeader5.Width := StrToInt(gsWidth[4]);
-    PrintReport.Header5.Width := StrToInt(gsWidth[4]);
-    }
-    //Field6
-    PrintReport.Field6.DataSet := Qry;
-    PrintReport.Field6.DataField := RightStr(slDBFields[5],Length(slDBFields[5]) - 2);
-    PrintReport.THeader6.Caption  := slFields[5];
-    PrintReport.Header6.Caption  := slFields[5];
-
-    {PrintReport.Field6.Left := StrToInt(gsWidth[0]) + 10 + StrToInt(gsWidth[1]) + 10 + StrToInt(gsWidth[2]) + 10 + StrToInt(gsWidth[3]) + 10  + StrToInt(gsWidth[4]) + 10;
-    PrintReport.THeader6.Left := StrToInt(gsWidth[0]) + 10 + StrToInt(gsWidth[1]) + 10 + StrToInt(gsWidth[2]) + 10 + StrToInt(gsWidth[3]) + 10  + StrToInt(gsWidth[4]) + 10;
-    PrintReport.THeader6.Left := StrToInt(gsWidth[0]) + 10 + StrToInt(gsWidth[1]) + 10 + StrToInt(gsWidth[2]) + 10 + StrToInt(gsWidth[3]) + 10  + StrToInt(gsWidth[4]) + 10;
-
-    PrintReport.Field6.Width := StrToInt(gsWidth[5]);
-    PrintReport.THeader6.Width := StrToInt(gsWidth[5]);
-    PrintReport.Header6.Width := StrToInt(gsWidth[5]);
-    }
-    PrintReport.Preview;
-    PrintReport.Free;
+      {PrintReport.Field2.Left := StrToInt(gsWidth[0]) + 10;
+      PrintReport.THeader2.Left := StrToInt(gsWidth[0]) + 10;
+      PrintReport.THeader2.Left := StrToInt(gsWidth[0]) + 10;
 
 
-    Qry.Close;
-    Conn.Close;
+      PrintReport.Field2.Width := StrToInt(gsWidth[1]);
+      PrintReport.THeader2.Width := StrToInt(gsWidth[1]);
+      PrintReport.Header2.Width := StrToInt(gsWidth[1]);
+      }
+
+      //Field3
+      PrintReport.Field3.DataSet := Qry;
+      PrintReport.Field3.DataField := RightStr(slDBFields[2],Length(slDBFields[2]) - 2);
+      PrintReport.THeader3.Caption  := slFields[2];
+      PrintReport.Header3.Caption  := slFields[2];
+
+      {PrintReport.Field3.Left := StrToInt(gsWidth[0]) + 10 + StrToInt(gsWidth[1]) + 10;
+      PrintReport.THeader3.Left := StrToInt(gsWidth[0]) + 10 + StrToInt(gsWidth[1]) + 10;
+      PrintReport.THeader3.Left := StrToInt(gsWidth[0]) + 10 + StrToInt(gsWidth[1]) + 10;
+
+
+      PrintReport.Field3.Width := StrToInt(gsWidth[2]);
+      PrintReport.THeader3.Width := StrToInt(gsWidth[2]);
+      PrintReport.Header3.Width := StrToInt(gsWidth[2]);
+      }
+
+      //Field4
+      PrintReport.Field4.DataSet := Qry;
+      PrintReport.Field4.DataField := RightStr(slDBFields[3],Length(slDBFields[3]) - 2);
+      PrintReport.THeader4.Caption  := slFields[3];
+      PrintReport.Header4.Caption  := slFields[3];
+
+      {PrintReport.Field4.Left := StrToInt(gsWidth[0]) + 10 + StrToInt(gsWidth[1]) + 10 + StrToInt(gsWidth[2]) + 10;
+      PrintReport.THeader4.Left := StrToInt(gsWidth[0]) + 10 + StrToInt(gsWidth[1]) + 10 + StrToInt(gsWidth[2]) + 10;
+      PrintReport.THeader4.Left := StrToInt(gsWidth[0]) + 10 + StrToInt(gsWidth[1]) + 10 + StrToInt(gsWidth[2]) + 10;
+
+
+      PrintReport.Field4.Width := StrToInt(gsWidth[3]);
+      PrintReport.THeader4.Width := StrToInt(gsWidth[3]);
+      PrintReport.Header4.Width := StrToInt(gsWidth[3]);
+      }
+      //Field5
+      PrintReport.Field5.DataSet := Qry;
+      PrintReport.Field5.DataField := RightStr(slDBFields[4],Length(slDBFields[4]) - 2);
+      PrintReport.THeader5.Caption  := slFields[4];
+      PrintReport.Header5.Caption  := slFields[4];
+
+      {PrintReport.Field5.Left := StrToInt(gsWidth[0]) + 10 + StrToInt(gsWidth[1]) + 10 + StrToInt(gsWidth[2]) + 10 + StrToInt(gsWidth[3]) + 10;
+      PrintReport.THeader5.Left := StrToInt(gsWidth[0]) + 10 + StrToInt(gsWidth[1]) + 10 + StrToInt(gsWidth[2]) + 10 + StrToInt(gsWidth[3]) + 10;
+      PrintReport.THeader5.Left := StrToInt(gsWidth[0]) + 10 + StrToInt(gsWidth[1]) + 10 + StrToInt(gsWidth[2]) + 10 + StrToInt(gsWidth[3]) + 10;
+
+      PrintReport.Field5.Width := StrToInt(gsWidth[4]);
+      PrintReport.THeader5.Width := StrToInt(gsWidth[4]);
+      PrintReport.Header5.Width := StrToInt(gsWidth[4]);
+      }
+      //Field6
+      PrintReport.Field6.DataSet := Qry;
+      PrintReport.Field6.DataField := RightStr(slDBFields[5],Length(slDBFields[5]) - 2);
+      PrintReport.THeader6.Caption  := slFields[5];
+      PrintReport.Header6.Caption  := slFields[5];
+
+      {PrintReport.Field6.Left := StrToInt(gsWidth[0]) + 10 + StrToInt(gsWidth[1]) + 10 + StrToInt(gsWidth[2]) + 10 + StrToInt(gsWidth[3]) + 10  + StrToInt(gsWidth[4]) + 10;
+      PrintReport.THeader6.Left := StrToInt(gsWidth[0]) + 10 + StrToInt(gsWidth[1]) + 10 + StrToInt(gsWidth[2]) + 10 + StrToInt(gsWidth[3]) + 10  + StrToInt(gsWidth[4]) + 10;
+      PrintReport.THeader6.Left := StrToInt(gsWidth[0]) + 10 + StrToInt(gsWidth[1]) + 10 + StrToInt(gsWidth[2]) + 10 + StrToInt(gsWidth[3]) + 10  + StrToInt(gsWidth[4]) + 10;
+
+      PrintReport.Field6.Width := StrToInt(gsWidth[5]);
+      PrintReport.THeader6.Width := StrToInt(gsWidth[5]);
+      PrintReport.Header6.Width := StrToInt(gsWidth[5]);
+      }
+      PrintReport.Preview;
+      PrintReport.Free;
+    end
+    finally
+      if Qry <> nil then begin
+        Qry.Close;
+        Qry.Free;
+      end;
+      if Conn <> nil then begin
+        Conn.Close;
+        Conn.Free
+      end;
+    end;
 end;
 
 procedure TfrmImprimir.CheckBox1Click(Sender: TObject);
