@@ -197,7 +197,7 @@ begin
                 'INNER JOIN tblOrdenes O ON I.ITE_ID = O.ITE_ID ';
 
       if lblQuery.Caption <> '' then begin
-        SQLStr := SQLStr + 'WHERE ' + lblQuery.Caption;
+        SQLStr := SQLStr + 'WHERE 1=1 ' + lblQuery.Caption;
       end;
 
       SQLStr := SQLStr + ' ORDER BY I.ITS_DTStart Desc' ;
@@ -366,7 +366,7 @@ begin
       Qry := TADOQuery.Create(nil);
       Qry.Connection :=Conn;
 
-      SQLStr := 'SELECT I.ITE_ID,RTRIM(I.ITE_Nombre) AS ITE_Nombre, ' +
+     { SQLStr := 'SELECT I.ITE_ID,RTRIM(I.ITE_Nombre) AS ITE_Nombre, ' +
                 'CASE WHEN ITS_Status = 2 THEN 0 ' +
                 'WHEN dbo.GetHours(I.ITS_DTStart,GETDATE()) > T.Tiempo THEN 1 ' +
                 'WHEN dbo.GetHours(O.Interna,GETDATE()) > T.Interno THEN 1 ' +
@@ -378,10 +378,12 @@ begin
                 'INNER JOIN tblItems I2 ON I2.ITE_ID = I.ITE_ID ' +
                 'INNER JOIN tblOrdenes O ON I.ITE_ID = O.ITE_ID ' +
                 'WHERE T.Nombre = ' + QuotedStr(gsTask) + ' AND I.ITS_Status = 2';
+      }
+      SQLStr := 'Traer_Terminadas ' + QuotedStr(gsTask) + ',' + QuotedStr(lblQuery.Caption);
 
-      SQLStr := SQLStr + lblTerminado.Caption;
-      SQLStr := SQLStr + lblQuery.Caption;
-      SQLStr := SQLStr + ' ORDER BY I.ITS_DTStart Desc' ;
+      //SQLStr := SQLStr + lblTerminado.Caption;
+      //SQLStr := SQLStr + lblQuery.Caption;
+      //SQLStr := SQLStr + ' ORDER BY I.ITS_DTStart Desc' ;
       Qry.SQL.Clear;
       Qry.SQL.Text := SQLStr;
       Qry.Open;

@@ -3537,6 +3537,7 @@ object frmMain: TfrmMain
     Top = 110
     Width = 120
     Height = 207
+    Cursor = 3000
     BorderStyle = bsSingle
     GridStyle = gsReport
     GridLinesStyle = lsNormal
