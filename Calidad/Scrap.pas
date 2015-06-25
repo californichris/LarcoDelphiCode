@@ -48,6 +48,7 @@ type
     procedure txtReproKeyPress(Sender: TObject; var Key: Char);
     function BoolToStrInt(Value:Boolean):String;
     function ValidarCantidad(Item:String;Cantidad:Integer):Boolean;
+    procedure FormActivate(Sender: TObject);
   private
     { Private declarations }
   public
@@ -432,5 +433,10 @@ begin
 
 end;
 
+
+procedure TfrmScrap.FormActivate(Sender: TObject);
+begin
+        Button1.SetFocus();
+end;
 
 end.

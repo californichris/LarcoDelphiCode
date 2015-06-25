@@ -950,6 +950,7 @@ object frmScrap: TfrmScrap
     5CCC0000004A0000E3EC0000FFFF0000AFFF000031FF800039FF800137FFC003
     33FFF00F33FF}
   OldCreateOrder = False
+  OnActivate = FormActivate
   OnClose = FormClose
   OnCreate = FormCreate
   PixelsPerInch = 96
@@ -1089,7 +1090,7 @@ object frmScrap: TfrmScrap
       Width = 60
       Height = 20
       Caption = 'OK'
-      TabOrder = 7
+      TabOrder = 8
       OnClick = btnOkClick
     end
     object btnCancel: TButton
@@ -1098,7 +1099,7 @@ object frmScrap: TfrmScrap
       Width = 60
       Height = 20
       Caption = 'Cancel'
-      TabOrder = 8
+      TabOrder = 9
       OnClick = btnCancelClick
     end
     object txtCantidad: TEdit
@@ -1106,7 +1107,7 @@ object frmScrap: TfrmScrap
       Top = 183
       Width = 81
       Height = 21
-      TabOrder = 4
+      TabOrder = 5
       Visible = False
       OnKeyPress = txtCantidadKeyPress
     end
@@ -1119,7 +1120,7 @@ object frmScrap: TfrmScrap
       Caption = 'Parcial'
       ParentShowHint = False
       ShowHint = True
-      TabOrder = 5
+      TabOrder = 6
       Visible = False
       OnClick = chkParcialClick
     end
@@ -1128,7 +1129,7 @@ object frmScrap: TfrmScrap
       Top = 214
       Width = 121
       Height = 21
-      TabOrder = 6
+      TabOrder = 7
       Visible = False
       OnKeyPress = txtReproKeyPress
     end
@@ -1146,7 +1147,7 @@ object frmScrap: TfrmScrap
       Width = 231
       Height = 21
       ItemHeight = 13
-      TabOrder = 9
+      TabOrder = 4
     end
   end
   object Button1: TButton

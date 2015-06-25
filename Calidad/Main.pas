@@ -151,7 +151,7 @@ begin
                    ';Password= ' + sPassword +'; Initial Catalog=' + sDB + ';Data Source=' + sServer;
     giTerminados := StrToInt(IniFile.ReadString('Tasks','Terminados','0'));
 
-    Self.Caption := Self.Caption + gsTask + ' 2.1';
+    Self.Caption := Self.Caption + gsTask + ' 2.2';
 
     if giTerminados = 1 then begin
         lblTerminado.Caption := ' AND I.ITS_DTStop > DATEADD(dd,-4,GETDATE()) ';
@@ -701,7 +701,6 @@ begin
                 Exit;
           end;
 
-
          if ValidateOrden(txtOrden.Text,Msg,Task,Status) then
          begin
               if gsTask = Task then
@@ -716,7 +715,7 @@ begin
 
                     iInc := 1;
                     if Status = '3' then iInc := 0;
-                    if MessageDlg('Estas seguro que quieres ' + GetStatusDes(StrToInt(Status) + iInc) +
+                    if MessageDlg('Estas seguros que quieres ' + GetStatusDes(StrToInt(Status) + iInc) +
                     ' la orden ' + txtOrden.Text  + '?',mtConfirmation, [mbYes, mbNo], 0) = mrNo then
                     begin
                         Timer1.Enabled := True;
