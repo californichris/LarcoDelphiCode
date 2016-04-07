@@ -6,7 +6,7 @@ uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs,ADODB,DB,IniFiles,All_Functions, chris_Functions,StdCtrls, ScrollView,
   CustomGridViewControl, CustomGridView, GridView, Menus,LTCUtils, Buttons,
-  ExtCtrls, ImgList,Imprimir,Clipbrd;
+  ExtCtrls, ImgList,Imprimir,Clipbrd,Printers ;
 
 type
   TfrmMain = class(TForm)
@@ -45,6 +45,7 @@ type
     lblTerminado: TLabel;
     Timer2: TTimer;
     lblAntes: TLabel;
+    Button2: TButton;
     function GetStatus(value:integer):String;
     function GetStatusDes(value:integer):String;
     procedure ChangeStatus(Orden,Status : String);
@@ -79,6 +80,7 @@ type
     procedure Button1Click(Sender: TObject);
     procedure btnPrintClick(Sender: TObject);
     function FormIsRunning(FormName: String):Boolean;
+    function GetLabelPrinterIndex: Integer;
     procedure btnActivoClick(Sender: TObject);
     procedure btnTerminadoClick(Sender: TObject);
     procedure Copiar1Click(Sender: TObject);
@@ -86,6 +88,8 @@ type
     procedure Encomillas1Click(Sender: TObject);
     procedure CopiaraOrden1Click(Sender: TObject);
     procedure Timer2Timer(Sender: TObject);
+    procedure Button2Click(Sender: TObject);
+    procedure PrintLabel(Orden: String);
   private
     { Private declarations }
   public
@@ -94,10 +98,12 @@ type
 
 var
   frmMain: TfrmMain;
-  gsConnString,StartDDir: String;
+  gsConnString,StartDDir,gsPrinterName: String;
   gsTask,gsRoute: String;
   giIntervalo,giMove,giConfirm,giTerminados,giDelete : Integer;
 implementation
+
+uses PrintLabel;
 {$R WinXP.res}
 {$R *.dfm}
 
@@ -144,6 +150,7 @@ begin
     giMove := StrToInt(IniFile.ReadString('Tasks','Move','0'));
     giConfirm := StrToInt(IniFile.ReadString('Tasks','Confirm','0'));
     giTerminados := StrToInt(IniFile.ReadString('Tasks','Terminados','0'));
+    gsPrinterName := IniFile.ReadString('Tasks','PrinterName','\\stprn1\HP6040MFP');
     gsConnString := 'Provider=SQLOLEDB.1;Persist Security Info=False;User ID=' + sUser +
                    ';Password= ' + sPassword +'; Initial Catalog=' + sDB + ';Data Source=' + sServer;
 
@@ -246,111 +253,6 @@ begin
     end;
 end;
 
-{
-procedure TfrmMain.BindListos();
-var Conn : TADOConnection;
-Qry : TADOQuery;
-SQLStr : String;
-begin
-    Qry := nil;
-    Conn := nil;
-    try
-    begin
-      Conn := TADOConnection.Create(nil);
-      Conn.ConnectionString := gsConnString;
-      Conn.LoginPrompt := False;
-      Qry := TADOQuery.Create(nil);
-      Qry.Connection :=Conn;
-
-      SQLStr := 'SELECT I.ITE_ID,RTRIM(I.ITE_Nombre) AS ITE_Nombre, ' +
-                'CASE WHEN ITS_Status = 2 THEN 0 ' +
-                'WHEN dbo.GetHours(I.ITS_DTStart,GETDATE()) > T.Tiempo THEN 1 ' +
-                'WHEN dbo.GetHours(O.Interna,GETDATE()) > T.Interno THEN 1 ' +
-                'WHEN I2.ITE_Priority > 0.00 THEN 2 ' +
-                'ELSE 0 END AS Late, ' +
-                'I2.ITE_Status ' +
-                'FROM tblItemTasks I ' +
-                'INNER JOIN tblTareas T ON I.TAS_ID = T.[ID] ' +
-                'INNER JOIN tblItems I2 ON I2.ITE_ID = I.ITE_ID ' +
-                'INNER JOIN tblOrdenes O ON I.ITE_ID = O.ITE_ID ' +
-                'WHERE T.Nombre = ' + QuotedStr(gsTask) + ' AND I.ITS_Status = 0';
-
-      SQLStr := SQLStr + lblQuery.Caption;
-      SQLStr := SQLStr + ' ORDER BY I.ITS_DTStart Desc' ;
-
-      Qry.SQL.Clear;
-      Qry.SQL.Text := SQLStr;
-      Qry.Open;
-
-
-      gvListos.ClearRows;
-      while not Qry.Eof do
-      begin
-          gvListos.AddRow(1);
-          gvListos.Cells[0,gvListos.RowCount -1] := VarToStr(Qry['ITE_ID']);
-          gvListos.Cells[1,gvListos.RowCount -1] := VarToStr(Qry['ITE_Nombre']);
-          gvListos.Cell[2,gvListos.RowCount -1].AsInteger := StrToInt( VarToStr(Qry['Late']) );
-          Qry.Next;
-      end;
-    end
-    finally
-      if Qry <> nil then Qry.Close;
-      if Conn <> nil then Conn.Close;
-    end;
-end;
-
-procedure TfrmMain.BindActivos();
-var Conn : TADOConnection;
-Qry : TADOQuery;
-SQLStr : String;
-begin
-    Qry := nil;
-    Conn := nil;
-    try
-    begin
-      Conn := TADOConnection.Create(nil);
-      Conn.ConnectionString := gsConnString;
-      Conn.LoginPrompt := False;
-      Qry := TADOQuery.Create(nil);
-      Qry.Connection :=Conn;
-
-      SQLStr := 'SELECT I.ITE_ID,RTRIM(I.ITE_Nombre) AS ITE_Nombre, ' +
-                'CASE WHEN ITS_Status = 2 THEN 0 ' +
-                'WHEN dbo.GetHours(I.ITS_DTStart,GETDATE()) > T.Tiempo THEN 1 ' +
-                'WHEN dbo.GetHours(O.Interna,GETDATE()) > T.Interno THEN 1 ' +
-                'WHEN I2.ITE_Priority > 0.00 THEN 2 ' +
-                'ELSE 0 END AS Late, ' +
-                'I2.ITE_Status ' +
-                'FROM tblItemTasks I ' +
-                'INNER JOIN tblTareas T ON I.TAS_ID = T.[ID] ' +
-                'INNER JOIN tblItems I2 ON I2.ITE_ID = I.ITE_ID ' +
-                'INNER JOIN tblOrdenes O ON I.ITE_ID = O.ITE_ID ' +
-                'WHERE T.Nombre = ' + QuotedStr(gsTask) + ' AND I.ITS_Status = 1 ';
-
-      SQLStr := SQLStr + lblQuery.Caption;
-      SQLStr := SQLStr + ' ORDER BY I.ITS_DTStart Desc' ;
-
-      Qry.SQL.Clear;
-      Qry.SQL.Text := SQLStr;
-      Qry.Open;
-
-
-      gvActivos.ClearRows;
-      while not Qry.Eof do
-      begin
-          gvActivos.AddRow(1);
-          gvActivos.Cells[0,gvActivos.RowCount -1] := VarToStr(Qry['ITE_ID']);
-          gvActivos.Cells[1,gvActivos.RowCount -1] := VarToStr(Qry['ITE_Nombre']);
-          gvActivos.Cell[2,gvActivos.RowCount -1].AsInteger := StrToInt( VarToStr(Qry['Late']) );
-          Qry.Next;
-      end;
-    end
-    finally
-      if Qry <> nil then Qry.Close;
-      if Conn <> nil then Conn.Close;
-    end;
-end;
-}
 procedure TfrmMain.BindTerminados();
 var Conn : TADOConnection;
 Qry : TADOQuery;
@@ -366,24 +268,8 @@ begin
       Qry := TADOQuery.Create(nil);
       Qry.Connection :=Conn;
 
-     { SQLStr := 'SELECT I.ITE_ID,RTRIM(I.ITE_Nombre) AS ITE_Nombre, ' +
-                'CASE WHEN ITS_Status = 2 THEN 0 ' +
-                'WHEN dbo.GetHours(I.ITS_DTStart,GETDATE()) > T.Tiempo THEN 1 ' +
-                'WHEN dbo.GetHours(O.Interna,GETDATE()) > T.Interno THEN 1 ' +
-                'WHEN I2.ITE_Priority > 0.00 THEN 2 ' +
-                'ELSE 0 END AS Late, ' +
-                'I2.ITE_Status ' +
-                'FROM tblItemTasks I ' +
-                'INNER JOIN tblTareas T ON I.TAS_ID = T.[ID] ' +
-                'INNER JOIN tblItems I2 ON I2.ITE_ID = I.ITE_ID ' +
-                'INNER JOIN tblOrdenes O ON I.ITE_ID = O.ITE_ID ' +
-                'WHERE T.Nombre = ' + QuotedStr(gsTask) + ' AND I.ITS_Status = 2';
-      }
       SQLStr := 'Traer_Terminadas ' + QuotedStr(gsTask) + ',' + QuotedStr(lblQuery.Caption);
 
-      //SQLStr := SQLStr + lblTerminado.Caption;
-      //SQLStr := SQLStr + lblQuery.Caption;
-      //SQLStr := SQLStr + ' ORDER BY I.ITS_DTStart Desc' ;
       Qry.SQL.Clear;
       Qry.SQL.Text := SQLStr;
       Qry.Open;
@@ -623,7 +509,7 @@ begin
 end;
 
 procedure TfrmMain.MoverOrden();
-var Task,Status,Msg : String;
+var Task,Status,Msg,StatusDesc : String;
 begin
   Timer2.Enabled := False;
   Timer1.Enabled := False;
@@ -641,7 +527,8 @@ begin
         begin
           if giConfirm = 1 then
           begin
-              if MessageDlg('Estas seguro que quieres ' + GetStatusDes(StrToInt(Status) + 1) +
+              StatusDesc := GetStatusDes(StrToInt(Status) + 1);
+              if MessageDlg('Estas seguro que quieres ' + StatusDesc +
               ' la orden ' + txtOrden.Text  + '?',mtConfirmation, [mbYes, mbNo], 0) = mrNo then
               begin
                   Timer1.Enabled := True;
@@ -649,6 +536,11 @@ begin
               end
               else begin
                   ChangeStatus(txtOrden.Text,Status);
+                  if StatusDesc = 'Terminar' then
+                  begin
+                        PrintLabel(txtOrden.Text);
+                  end;
+
                   txtOrden.Text := '';
                   txtOrden.SetFocus;
                   Timer2.Enabled := True;
@@ -745,7 +637,7 @@ var Conn : TADOConnection;
 Qry : TADOQuery;
 SQLStr : String;
 begin
-    Result := False;
+    //Result := False;
 
     Qry := nil;
     Conn := nil;
@@ -796,7 +688,62 @@ begin
     end;
 end;
 
+procedure TfrmMain.PrintLabel(Orden: String);
+var Conn : TADOConnection;
+Qry : TADOQuery;
+SQLStr : String;
+begin
+    Qry := nil;
+    Conn := nil;
+    try
+    begin
+      Conn := TADOConnection.Create(nil);
+      Conn.ConnectionString := gsConnString;
+      Conn.LoginPrompt := False;
+      Qry := TADOQuery.Create(nil);
+      Qry.Connection := Conn;
 
+      SQLStr := 'SELECT Top 1 O.*, C.Nombre AS NombreCliente FROM tblOrdenes O ' +
+                'INNER JOIN tblClientes C ON substring(O.ITE_Nombre,4,3) = C.Clave ' +
+                'WHERE ITE_Nombre = ' + QuotedStr(Orden);
+
+      Qry.SQL.Clear;
+      Qry.SQL.Text := SQLStr;
+      Qry.Open;
+
+      if Qry.RecordCount <= 0 then
+      begin
+          MessageDlg('La orden no existe en el sistema.', mtInformation, [mbOK],0);
+          Exit;
+      end;
+
+      Application.Initialize;
+      Application.CreateForm(TLabelReport, LabelReport);
+      LabelReport.lblCliente.Caption := VarToStr(Qry['NombreCliente']);
+      LabelReport.lblOCompra.Caption := VarToStr(Qry['OrdenCompra']);
+      LabelReport.lblFecha.Caption := VarToStr(Qry['Entrega']);
+      LabelReport.lblDesc.Caption := VarToStr(Qry['Producto']);
+      LabelReport.lblCantidad.Caption := VarToStr(Qry['Requerida']);
+      LabelReport.lblReq.Caption := VarToStr(Qry['Requisicion']);
+      LabelReport.lblNoParte.Caption := VarToStr(Qry['Numero']);
+
+      LabelReport.PrinterSettings.PrinterIndex := GetLabelPrinterIndex;
+      LabelReport.Print;
+      //LabelReport.Preview;
+      LabelReport.Free;
+
+    end
+    finally
+      if Qry <> nil then begin
+        Qry.Close;
+        Qry.Free;
+      end;
+      if Conn <> nil then begin
+        Conn.Close;
+        Conn.Free
+      end;
+    end;
+end;
 
 procedure TfrmMain.txtEmpleadoKeyPress(Sender: TObject; var Key: Char);
 begin
@@ -1126,6 +1073,53 @@ begin
   txtEmpleado.Text := '';
   Timer2.Enabled := False;
   txtEmpleado.SetFocus;
+end;
+
+procedure TfrmMain.Button2Click(Sender: TObject);
+var
+  i: Integer;
+  printerName: String;
+begin
+  for i := 0 to Printer.Printers.Count - 1 do
+  begin
+      //ShowMessage(Printer.Printers[i]);
+      printerName := Printer.Printers[i];
+      if(Printer.Printers[i] = '\\stprn1\HP6040MFP') then begin
+        break;
+      end;
+
+  end;
+
+  ShowMessage('Index: ' + IntToStr(i));
+
+  Application.Initialize;
+  Application.CreateForm(TLabelReport, LabelReport);
+  LabelReport.lblCliente.Caption := 'Test Client';
+  LabelReport.lblOCompra.Caption := '12345678';
+  LabelReport.lblFecha.Caption := '10-03-2016';
+  LabelReport.lblDesc.Caption := 'Descripcion aqui';
+  LabelReport.lblCantidad.Caption := '10';
+  LabelReport.lblReq.Caption := 'DSTF-CCSDA1313';
+  LabelReport.lblNoParte.Caption := 'XSDSSD-AA12313';
+
+  //LabelReport.PrinterSettings.PrinterIndex := i;
+
+  LabelReport.Preview;
+  LabelReport.Free;
+end;
+
+function TfrmMain.GetLabelPrinterIndex: Integer;
+var
+  i: Integer;
+begin
+  Result := -1;
+  for i := 0 to Printer.Printers.Count - 1 do
+    if Printer.Printers[i] = gsPrinterName then
+    begin
+      Result := i;
+      break;
+    end;
+
 end;
 
 end.

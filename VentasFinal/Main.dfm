@@ -3857,6 +3857,15 @@ object frmMain: TfrmMain
     TabOrder = 5
     OnClick = Button1Click
   end
+  object Button2: TButton
+    Left = 480
+    Top = 360
+    Width = 75
+    Height = 25
+    Caption = 'Button2'
+    TabOrder = 6
+    OnClick = Button2Click
+  end
   object Timer1: TTimer
     OnTimer = Timer1Timer
     Left = 356
