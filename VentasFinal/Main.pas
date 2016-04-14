@@ -46,6 +46,9 @@ type
     Timer2: TTimer;
     lblAntes: TLabel;
     Button2: TButton;
+    Label3: TLabel;
+    txtCantidad: TEdit;
+    lblPrinterMsg: TLabel;
     function GetStatus(value:integer):String;
     function GetStatusDes(value:integer):String;
     procedure ChangeStatus(Orden,Status : String);
@@ -100,7 +103,7 @@ var
   frmMain: TfrmMain;
   gsConnString,StartDDir,gsPrinterName: String;
   gsTask,gsRoute: String;
-  giIntervalo,giMove,giConfirm,giTerminados,giDelete : Integer;
+  giIntervalo,giMove,giConfirm,giTerminados,giDelete,giPrinterIndex : Integer;
 implementation
 
 uses PrintLabel;
@@ -150,7 +153,7 @@ begin
     giMove := StrToInt(IniFile.ReadString('Tasks','Move','0'));
     giConfirm := StrToInt(IniFile.ReadString('Tasks','Confirm','0'));
     giTerminados := StrToInt(IniFile.ReadString('Tasks','Terminados','0'));
-    gsPrinterName := IniFile.ReadString('Tasks','PrinterName','\\stprn1\HP6040MFP');
+    gsPrinterName := IniFile.ReadString('Tasks','PrinterName','Leitz');
     gsConnString := 'Provider=SQLOLEDB.1;Persist Security Info=False;User ID=' + sUser +
                    ';Password= ' + sPassword +'; Initial Catalog=' + sDB + ';Data Source=' + sServer;
 
@@ -164,6 +167,11 @@ begin
     Timer2.Interval := giDelete;
 
     BindAll;
+    giPrinterIndex := GetLabelPrinterIndex;
+    lblPrinterMsg.Caption := '';
+    if(giPrinterIndex = -1) then begin
+        lblPrinterMsg.Caption := 'Impresora ' + gsPrinterName + ' no encontrada.'
+    end;
 end;
 
 procedure TfrmMain.BindAll();
@@ -535,11 +543,12 @@ begin
                   Exit;
               end
               else begin
-                  ChangeStatus(txtOrden.Text,Status);
-                  if StatusDesc = 'Terminar' then
+                  if (StatusDesc = 'Terminar') and (giPrinterIndex <> -1)then
                   begin
                         PrintLabel(txtOrden.Text);
                   end;
+
+                  ChangeStatus(txtOrden.Text,Status);
 
                   txtOrden.Text := '';
                   txtOrden.SetFocus;
@@ -719,19 +728,29 @@ begin
 
       Application.Initialize;
       Application.CreateForm(TLabelReport, LabelReport);
+      LabelReport.lblPartida.Caption := '';
+
       LabelReport.lblCliente.Caption := VarToStr(Qry['NombreCliente']);
       LabelReport.lblOCompra.Caption := VarToStr(Qry['OrdenCompra']);
-      LabelReport.lblFecha.Caption := VarToStr(Qry['Entrega']);
+      LabelReport.lblFecha.Caption := DateToStr(date);
       LabelReport.lblDesc.Caption := VarToStr(Qry['Producto']);
-      LabelReport.lblCantidad.Caption := VarToStr(Qry['Requerida']);
+      if(txtCantidad.Text = '') then begin
+        LabelReport.lblCantidad.Caption := VarToStr(Qry['Requerida']);
+      end
+      else begin
+        LabelReport.lblCantidad.Caption := txtCantidad.Text;
+      end;
+
       LabelReport.lblReq.Caption := VarToStr(Qry['Requisicion']);
       LabelReport.lblNoParte.Caption := VarToStr(Qry['Numero']);
+      LabelReport.lblPartida.Caption := RightStr(Orden, 2);
 
-      LabelReport.PrinterSettings.PrinterIndex := GetLabelPrinterIndex;
+      LabelReport.PrinterSettings.PrinterIndex := giPrinterIndex;
+
       LabelReport.Print;
       //LabelReport.Preview;
       LabelReport.Free;
-
+      txtCantidad.Text := '';
     end
     finally
       if Qry <> nil then begin
@@ -864,8 +883,9 @@ begin
             end
           else
             begin
-                 if Status = '1' Then
-                         MessageDlg('Por favor lleve la orden ' + Orden + ' a la tarea ' + VarToStr(Qry['Msg']) + '.', mtInformation, [mbOK],0);
+                 //es venta final no hay necesidad de mover la orden
+                 //if Status = '1' Then
+                   //      MessageDlg('Por favor lleve la orden ' + Orden + ' a la tarea ' + VarToStr(Qry['Msg']) + '.', mtInformation, [mbOK],0);
             end;
 
         end;
@@ -1082,9 +1102,12 @@ var
 begin
   for i := 0 to Printer.Printers.Count - 1 do
   begin
-      //ShowMessage(Printer.Printers[i]);
+      ShowMessage(Printer.Printers[i]);
       printerName := Printer.Printers[i];
-      if(Printer.Printers[i] = '\\stprn1\HP6040MFP') then begin
+
+      ShowMessage(IntToStr(InStr(0,printerName, gsPrinterName)));
+
+      if(InStr(0,printerName,'Leitz') <> 0) then begin
         break;
       end;
 
@@ -1102,7 +1125,7 @@ begin
   LabelReport.lblReq.Caption := 'DSTF-CCSDA1313';
   LabelReport.lblNoParte.Caption := 'XSDSSD-AA12313';
 
-  //LabelReport.PrinterSettings.PrinterIndex := i;
+  LabelReport.PrinterSettings.PrinterIndex := i;
 
   LabelReport.Preview;
   LabelReport.Free;
@@ -1114,7 +1137,7 @@ var
 begin
   Result := -1;
   for i := 0 to Printer.Printers.Count - 1 do
-    if Printer.Printers[i] = gsPrinterName then
+    if (InStr(0,Printer.Printers[i],gsPrinterName) <> 0) then
     begin
       Result := i;
       break;

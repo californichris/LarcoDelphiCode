@@ -3340,6 +3340,13 @@ object frmMain: TfrmMain
     Height = 13
     Caption = 'lblAntes'
   end
+  object lblPrinterMsg: TLabel
+    Left = 432
+    Top = 376
+    Width = 151
+    Height = 13
+    Caption = 'Impresora Leitz no encontrada.'
+  end
   object GroupBox1: TGroupBox
     Left = 8
     Top = 8
@@ -3359,6 +3366,13 @@ object frmMain: TfrmMain
       Width = 37
       Height = 13
       Caption = 'Orden :'
+    end
+    object Label3: TLabel
+      Left = 224
+      Top = 48
+      Width = 50
+      Height = 13
+      Caption = 'Cantidad: '
     end
     object txtEmpleado: TEdit
       Left = 61
@@ -3380,8 +3394,8 @@ object frmMain: TfrmMain
       OnKeyPress = txtOrdenKeyPress
     end
     object btnActivo: TButton
-      Left = 300
-      Top = 45
+      Left = 292
+      Top = 5
       Width = 72
       Height = 21
       Caption = 'Activo'
@@ -3390,8 +3404,8 @@ object frmMain: TfrmMain
       OnClick = btnActivoClick
     end
     object btnTerminado: TButton
-      Left = 300
-      Top = 37
+      Left = 292
+      Top = 13
       Width = 72
       Height = 21
       Caption = 'Terminado'
@@ -3407,6 +3421,13 @@ object frmMain: TfrmMain
       Caption = 'Filtrar'
       TabOrder = 4
       OnClick = btnPrintClick
+    end
+    object txtCantidad: TEdit
+      Left = 278
+      Top = 43
+      Width = 81
+      Height = 21
+      TabOrder = 5
     end
   end
   object gvListos: TGridView
@@ -3858,12 +3879,19 @@ object frmMain: TfrmMain
     OnClick = Button1Click
   end
   object Button2: TButton
-    Left = 480
-    Top = 360
+    Left = 272
+    Top = 352
     Width = 75
     Height = 25
     Caption = 'Button2'
+    Font.Charset = ANSI_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -11
+    Font.Name = 'Tahoma'
+    Font.Style = []
+    ParentFont = False
     TabOrder = 6
+    Visible = False
     OnClick = Button2Click
   end
   object Timer1: TTimer

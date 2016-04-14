@@ -11,7 +11,7 @@ uses
 
 begin
   Application.Initialize;
-  Application.Title := 'Larco Task App';
+  Application.Title := 'Larco Ventas Final App';
   Application.CreateForm(TfrmMain, frmMain);
   Application.Run;
 end.

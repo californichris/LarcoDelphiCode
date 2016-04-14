@@ -31,6 +31,7 @@ type
     lblNoParte: TQRLabel;
     QRShape8: TQRShape;
     QRShape9: TQRShape;
+    lblPartida: TQRLabel;
   private
 
   public
