@@ -93,6 +93,7 @@ type
     procedure Timer2Timer(Sender: TObject);
     procedure Button2Click(Sender: TObject);
     procedure PrintLabel(Orden: String);
+    procedure GetTaskId();
   private
     { Private declarations }
   public
@@ -102,7 +103,7 @@ type
 var
   frmMain: TfrmMain;
   gsConnString,StartDDir,gsPrinterName: String;
-  gsTask,gsRoute: String;
+  gsTask,gsRoute,gsTaskId: String;
   giIntervalo,giMove,giConfirm,giTerminados,giDelete,giPrinterIndex : Integer;
 implementation
 
@@ -157,7 +158,7 @@ begin
     gsConnString := 'Provider=SQLOLEDB.1;Persist Security Info=False;User ID=' + sUser +
                    ';Password= ' + sPassword +'; Initial Catalog=' + sDB + ';Data Source=' + sServer;
 
-    Self.Caption := Self.Caption + gsTask + ' 2.1';
+    Self.Caption := Self.Caption + gsTask + ' 3.0';
     if giTerminados = 1 then begin
         lblTerminado.Caption := ' AND ITS_DTStop > DATEADD(dd,-4,GETDATE()) ';
     end;
@@ -165,6 +166,7 @@ begin
     Application.Title := gsTask;
     Timer1.Interval := giIntervalo;
     Timer2.Interval := giDelete;
+    GetTaskId();
 
     BindAll;
     giPrinterIndex := GetLabelPrinterIndex;
@@ -175,13 +177,21 @@ begin
 end;
 
 procedure TfrmMain.BindAll();
+var caption : String;
 begin
+    caption := Self.Caption;
+    Self.Caption := caption + ' - Actualizando...';
+    Self.Caption := caption + ' - Actualizando ListosActivosRetrabajo...';
     BindListosActivosRetrabajo;
     //BindListos;
     //BindActivos;
+    Self.Caption := caption + ' - Actualizando Terminados...';
     BindTerminados;
+    Self.Caption := caption + ' - Actualizando Anteriores...';
     BindAnteriores;
+    Self.Caption := caption + ' - Actualizando Stats...';    
     BindStats();
+    Self.Caption := caption;
 end;
 
 procedure TfrmMain.BindListosActivosRetrabajo();
@@ -276,7 +286,7 @@ begin
       Qry := TADOQuery.Create(nil);
       Qry.Connection :=Conn;
 
-      SQLStr := 'Traer_Terminadas ' + QuotedStr(gsTask) + ',' + QuotedStr(lblQuery.Caption);
+      SQLStr := 'VentasFinal_Traer_Terminadas ' + gsTaskId + ',' + QuotedStr(lblQuery.Caption);
 
       Qry.SQL.Clear;
       Qry.SQL.Text := SQLStr;
@@ -313,7 +323,7 @@ begin
       Qry := TADOQuery.Create(nil);
       Qry.Connection :=Conn;
 
-      SQLStr := 'Ordenes_Antes_Tarea ' + QuotedStr(gsTask) + ',' + QuotedStr(lblQuery.Caption);
+      SQLStr := 'VentasFinal_Ordenes_Antes_Tarea ' + gsTaskId + ',' + QuotedStr(lblQuery.Caption);
 
       Qry.SQL.Clear;
       Qry.SQL.Text := SQLStr;
@@ -764,6 +774,42 @@ begin
     end;
 end;
 
+procedure TfrmMain.GetTaskId();
+var Conn : TADOConnection;
+Qry : TADOQuery;
+SQLStr : String;
+begin
+    Qry := nil;
+    Conn := nil;
+    try
+    begin
+      Conn := TADOConnection.Create(nil);
+      Conn.ConnectionString := gsConnString;
+      Conn.LoginPrompt := False;
+      Qry := TADOQuery.Create(nil);
+      Qry.Connection := Conn;
+
+      SQLStr := 'SELECT Id AS TaskId FROM tblTareas WHERE Nombre = ' + QuotedStr(gsTask);
+
+      Qry.SQL.Clear;
+      Qry.SQL.Text := SQLStr;
+      Qry.Open;
+
+      gsTaskId := Qry['TaskId'];
+
+    end
+    finally
+      if Qry <> nil then begin
+        Qry.Close;
+        Qry.Free;
+      end;
+      if Conn <> nil then begin
+        Conn.Close;
+        Conn.Free
+      end;
+    end;
+end;
+
 procedure TfrmMain.txtEmpleadoKeyPress(Sender: TObject; var Key: Char);
 begin
         if Key in ['0'..'9'] then
@@ -850,8 +896,11 @@ end;
 procedure TfrmMain.ChangeStatus(Orden,Status : String);
 var Conn : TADOConnection;
 Qry : TADOQuery;
-SQLStr : String;
+SQLStr,caption : String;
 begin
+    caption := Self.Caption;
+    Self.Caption := caption + ' Cambiando de status...';
+
     Qry := nil;
     Conn := nil;
     try
@@ -900,7 +949,7 @@ begin
         Conn.Free
       end;
     end;
-
+    Self.Caption := caption;
     BindAll;
 //txtempleado.SetFocus;
 end;
@@ -1100,7 +1149,7 @@ var
   i: Integer;
   printerName: String;
 begin
-  for i := 0 to Printer.Printers.Count - 1 do
+  {for i := 0 to Printer.Printers.Count - 1 do
   begin
       ShowMessage(Printer.Printers[i]);
       printerName := Printer.Printers[i];
@@ -1114,7 +1163,7 @@ begin
   end;
 
   ShowMessage('Index: ' + IntToStr(i));
-
+   }
   Application.Initialize;
   Application.CreateForm(TLabelReport, LabelReport);
   LabelReport.lblCliente.Caption := 'Test Client';
@@ -1124,10 +1173,13 @@ begin
   LabelReport.lblCantidad.Caption := '10';
   LabelReport.lblReq.Caption := 'DSTF-CCSDA1313';
   LabelReport.lblNoParte.Caption := 'XSDSSD-AA12313';
+  LabelReport.lblPartida.Caption := '1';
 
-  LabelReport.PrinterSettings.PrinterIndex := i;
-
-  LabelReport.Preview;
+  LabelReport.PrinterSettings.PrinterIndex := GetLabelPrinterIndex;
+  LabelReport.PrinterSettings.Orientation := poPortrait;
+  //LabelReport.PrinterSettings.Orientation := poLandscape;
+  //LabelReport.Preview;
+  LabelReport.Print;
   LabelReport.Free;
 end;
 
