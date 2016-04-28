@@ -51,7 +51,7 @@ Conditionals=
 DebugSourceDirs=
 UsePackages=0
 [Parameters]
-RunParams=/R=OK /T=VentasFinal
+RunParams=/R=OK /T=Fresado
 HostApplication=
 Launcher=
 UseLauncher=0

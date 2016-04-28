@@ -6,7 +6,7 @@ uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs,ADODB,DB,IniFiles,All_Functions, chris_Functions,StdCtrls, ScrollView,
   CustomGridViewControl, CustomGridView, GridView, Menus,LTCUtils, Buttons,
-  ExtCtrls, ImgList,Imprimir,Clipbrd,Printers ;
+  ExtCtrls, ImgList,Imprimir,Clipbrd,Printers,Larco_Functions ;
 
 type
   TfrmMain = class(TForm)
@@ -57,13 +57,9 @@ type
     function IsActive(Orden: String):Boolean;
     function IsReady(Orden: String):Boolean;
     function ValidateOrden(Orden: String; var Msg,Task,Status: String):Boolean;
-    function ValidateEmpleado(Id: String):Boolean;
     procedure BindItemDetail(Item: String; Status: String);
     procedure BindAll();
     procedure BindListosActivosRetrabajo();
-{    procedure BindListos();
-    procedure BindActivos();
-}
     procedure BindTerminados();
     procedure BindStats();
     procedure BindAnteriores();
@@ -183,8 +179,6 @@ begin
     Self.Caption := caption + ' - Actualizando...';
     Self.Caption := caption + ' - Actualizando ListosActivosRetrabajo...';
     BindListosActivosRetrabajo;
-    //BindListos;
-    //BindActivos;
     Self.Caption := caption + ' - Actualizando Terminados...';
     BindTerminados;
     Self.Caption := caption + ' - Actualizando Anteriores...';
@@ -462,10 +456,6 @@ begin
                   gvPropiedades.AddRow(1);
                   gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'Tarea';
 
-                  //gvPropiedades.AddRow(1);
-                  //gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'No.Empleado';
-                  //gvPropiedades.Cells[1,gvPropiedades.RowCount -1] := UT(VarToStr(Qry['USE_Login']));
-
                   gvPropiedades.AddRow(1);
                   gvPropiedades.Cells[0,gvPropiedades.RowCount -1] := 'Empleado';
                   gvPropiedades.Cells[1,gvPropiedades.RowCount -1] := VarToStr(Qry['Empleado']);
@@ -531,9 +521,9 @@ var Task,Status,Msg,StatusDesc : String;
 begin
   Timer2.Enabled := False;
   Timer1.Enabled := False;
-  if not ValidateEmpleado(txtEmpleado.Text) Then
+  if not ValidateEmpleado(gsConnString, txtEmpleado.Text) Then
     begin
-          ShowMessage('Numero de empleado incorrecto');
+          ShowMessage('Numero de empleado incorrecto o empleado inactivo.');
           Timer1.Enabled := True;
           Exit;
     end;
@@ -609,46 +599,6 @@ begin
 
    Timer1.Enabled := True;
    txtOrden.SetFocus;
-end;
-
-function TfrmMain.ValidateEmpleado(Id: String):Boolean;
-var Conn : TADOConnection;
-Qry : TADOQuery;
-SQLStr : String;
-begin
-    Result := False;
-    if UT(Id) = '' then
-        Exit;
-
-    Qry := nil;
-    Conn := nil;
-    try
-    begin
-      Conn := TADOConnection.Create(nil);
-      Conn.ConnectionString := gsConnString;
-      Conn.LoginPrompt := False;
-      Qry := TADOQuery.Create(nil);
-      Qry.Connection := Conn;
-
-      SQLStr := 'SELECT Nombre FROM tblEmpleados WHERE Id =  ' + IntToStr(StrToInt(Id));
-
-      Qry.SQL.Clear;
-      Qry.SQL.Text := SQLStr;
-      Qry.Open;
-
-      if Qry.RecordCount > 0 then
-          Result := True;
-    end
-    finally
-      if Qry <> nil then begin
-        Qry.Close;
-        Qry.Free;
-      end;
-      if Conn <> nil then begin
-        Conn.Close;
-        Conn.Free
-      end;
-    end;
 end;
 
 function TfrmMain.ValidateOrden(Orden: String; var Msg,Task,Status: String):Boolean;
