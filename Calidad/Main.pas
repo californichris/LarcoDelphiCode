@@ -150,7 +150,7 @@ begin
                    ';Password= ' + sPassword +'; Initial Catalog=' + sDB + ';Data Source=' + sServer;
     giTerminados := StrToInt(IniFile.ReadString('Tasks','Terminados','0'));
 
-    Self.Caption := Self.Caption + gsTask + ' 2.3';
+    Self.Caption := Self.Caption + gsTask + ' 3.1';
 
     if giTerminados = 1 then begin
         lblTerminado.Caption := ' AND I.ITS_DTStop > DATEADD(dd,-4,GETDATE()) ';

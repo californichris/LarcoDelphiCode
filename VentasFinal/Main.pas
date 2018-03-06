@@ -154,7 +154,7 @@ begin
     gsConnString := 'Provider=SQLOLEDB.1;Persist Security Info=False;User ID=' + sUser +
                    ';Password= ' + sPassword +'; Initial Catalog=' + sDB + ';Data Source=' + sServer;
 
-    Self.Caption := Self.Caption + gsTask + ' 3.0';
+    Self.Caption := Self.Caption + gsTask + ' 3.1';
     if giTerminados = 1 then begin
         lblTerminado.Caption := ' AND ITS_DTStop > DATEADD(dd,-4,GETDATE()) ';
     end;

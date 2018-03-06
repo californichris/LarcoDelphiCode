@@ -11,18 +11,10 @@ uses
 type
   TForm1 = class(TForm)
     Button1: TButton;
-    Label1: TLabel;
     Memo1: TMemo;
-    Button2: TButton;
-    Edit1: TEdit;
-    Memo2: TMemo;
-    Memo3: TMemo;
-    Memo4: TMemo;
     procedure FormCreate(Sender: TObject);
     procedure Button1Click(Sender: TObject);
     procedure Button2Click(Sender: TObject);
-    procedure Edit1KeyDown(Sender: TObject; var Key: Word;
-      Shift: TShiftState);
   private
     { Private declarations }
   public
@@ -59,37 +51,45 @@ end;
 procedure TForm1.Button1Click(Sender: TObject);
 var Conn : TADOConnection;
 SQLStr : String;
+Qry2 : TADOQuery;
 begin
     //Create Connection
     Conn := TADOConnection.Create(nil);
     Conn.ConnectionString := gsConnString;
     Conn.LoginPrompt := False;
 
-    conn.Execute(Memo1.Text);
-    conn.Execute(Memo2.Text);
-    conn.Execute(Memo3.Text);
-    conn.Execute(Memo4.Text);
+    Qry2 := TADOQuery.Create(nil);
+    Qry2.Connection :=Conn;
 
-    conn.Execute('INSERT INTO tblScreens(SCR_Name, SCR_FormName, SCR_Description, SCR_Year) VALUES(''Reporte de Productividad por Empleado en Dinero'',''frmProdEmpleadoDinero'',''Reporte de Productividad por Empleado en Dinero'',''2008'')');
-    label1.Caption := 'La actualizacion se realizo exitosamente.';
+    Qry2.SQL.Clear;
+    Qry2.SQL.Text := Memo1.Text;
+    Qry2.Open;
 
-    Button1.Enabled := False;
+
+    if Qry2.RecordCount > 0 then
+    begin
+        Memo1.Text := '';
+        while not Qry2.Eof do
+          begin
+            Memo1.Lines.Add(VarToStr(Qry2['ITE_Nombre']));
+
+            Qry2.Next;
+          end;
+
+    end
+    else begin
+         Memo1.Text := 'No records found';
+    end;
+
+    Qry2.Close;
+
+
 end;
 
 procedure TForm1.Button2Click(Sender: TObject);
 var Strings : TStringList;
 begin
-   Strings := TStringList.Create;
-   Strings.Clear;
-   Strings.Delimiter := #191;
-   Strings.DelimitedText := Edit1.Text;
-   ShowMessage(IntToStr(Strings.count));
-end;
 
-procedure TForm1.Edit1KeyDown(Sender: TObject; var Key: Word;
-  Shift: TShiftState);
-begin
- Label1.Caption := Chr(Key)+' - '+IntToStr(Key);
 end;
 
 end.
